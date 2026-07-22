@@ -1,5 +1,15 @@
-/** @returns {number} current epoch milliseconds */
-export const now = () => Date.now();
+let lastNow = 0;
+/**
+ * Strictly-increasing epoch milliseconds. Monotonic within the process so that
+ * records created in the same wall-clock millisecond still receive a deterministic,
+ * creation-ordered timestamp (used to order bills, occurrences, and activities).
+ * @returns {number}
+ */
+export const now = () => {
+  const wall = Date.now();
+  lastNow = wall > lastNow ? wall : lastNow + 1;
+  return lastNow;
+};
 
 /** @returns {string} a random UUID */
 export const randomUUID = () => crypto.randomUUID();
