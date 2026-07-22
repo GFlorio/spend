@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spend</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+  <link rel="shortcut icon" href="/icons/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180.png" />
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<div class="app">
+  <main>
+    <section id="page-month" class="page">
+      <button type="button" id="monthTitle" class="month-title" aria-haspopup="dialog"></button>
+      <section id="statusCard" class="card status-card"></section>
+      <section id="periods" class="periods"></section>
+    </section>
+    <section id="page-envelopes" class="page hidden">
+      <p class="empty">Envelopes arrive in a later update.</p>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button type="button" class="tab active" data-page="month">Month</button>
+    <button type="button" class="tab" data-page="envelopes">Envelopes</button>
+    <button type="button" id="configBtn" class="tab" aria-label="Settings">Settings</button>
+  </nav>
+
+  <dialog id="configModal" aria-label="Settings">
+    <div class="config-inner">
+      <div class="config-header">
+        <span class="config-title">Settings</span>
+        <button type="button" class="btn ghost" id="configModalClose" aria-label="Close settings">✕</button>
+      </div>
+      <div class="config-section">
+        <div class="config-label">Theme</div>
+        <div class="config-theme-row">
+          <button type="button" class="btn config-theme-btn" data-theme="auto">Auto</button>
+          <button type="button" class="btn config-theme-btn" data-theme="light">Light</button>
+          <button type="button" class="btn config-theme-btn" data-theme="dark">Dark</button>
+        </div>
+      </div>
+      <p class="config-note">Data controls and app-health status arrive in a later update.</p>
+    </div>
+  </dialog>
+
+  <dialog id="monthSelectSheet" aria-label="Select month">
+    <div class="sheet-inner">
+      <div class="sheet-header"><span>Months</span>
+        <button type="button" class="btn ghost" id="monthSelectClose" aria-label="Close">✕</button></div>
+      <ul id="monthList" class="month-list"></ul>
+      <button type="button" class="btn primary" id="startMonthBtn">Start another month</button>
+    </div>
+  </dialog>
+
+  <dialog id="monthSetupDialog" aria-label="Set up month">
+    <form id="monthSetupForm" class="sheet-inner" method="dialog">
+      <div class="sheet-header"><span id="monthSetupTitle">New month</span>
+        <button type="button" class="btn ghost" id="monthSetupClose" aria-label="Close">✕</button></div>
+      <label class="field"><span>Available this month</span>
+        <input type="text" inputmode="decimal" id="monthSetupAmount" required autocomplete="off"></label>
+      <label class="field copy-field hidden" id="monthSetupCopyField">
+        <input type="checkbox" id="monthSetupCopy" checked>
+        <span id="monthSetupCopyLabel">Copy bills</span></label>
+      <button type="submit" class="btn primary">Create month</button>
+    </form>
+  </dialog>
+
+  <dialog id="activityDialog" aria-label="Add expense">
+    <form id="activityForm" class="sheet-inner" method="dialog">
+      <div class="sheet-header"><span id="activityTitle">Add expense</span>
+        <button type="button" class="btn ghost" id="activityClose" aria-label="Close">✕</button></div>
+      <label class="field"><span>Amount</span>
+        <input type="text" inputmode="decimal" id="activityAmount" required autocomplete="off"></label>
+      <label class="field"><span>Description (optional)</span>
+        <input type="text" id="activityDescription" autocomplete="off"></label>
+      <p class="activity-source" id="activitySource"></p>
+      <button type="submit" class="btn primary">Save</button>
+    </form>
+  </dialog>
+</div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

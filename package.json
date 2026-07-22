@@ -1,0 +1,13 @@
+{
+  "name": "spend",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "frontend"
+  ],
+  "devDependencies": {
+    "@biomejs/biome": "latest",
+    "baseline-browser-mapping": "^2.10.16",
+    "typescript": "^5.9.2"
+  }
+}
