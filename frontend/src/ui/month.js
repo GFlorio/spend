@@ -1,6 +1,6 @@
 import { computeMonth } from '../compute.js';
 import { Activities, Bills, Months } from '../data.js';
-import { formatMoney } from '../money.js';
+import { formatMoney, parseMoney } from '../money.js';
 import * as $ from '../utils.js';
 
 /** @type {string|null} */
@@ -53,16 +53,99 @@ function renderPeriods(view) {
   $.html($.id('periods')).textContent = `${view.periods.length} periods`;
 }
 
+/** Next month key after the latest existing month, else the current month. */
+async function nextMonthKey() {
+  const months = await Months.list();
+  const base = months.length ? months[months.length - 1].monthKey : $.isoToday().slice(0, 7);
+  const [year, month] = base.split('-').map(Number);
+  const d = new Date(year, month, 1); // month is 1-based -> Date month index = next month
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Open the setup dialog for a month key. @param {string} monthKey */
+async function openMonthSetup(monthKey) {
+  const months = await Months.list();
+  const isFirst = months.length === 0;
+  const prev = months.length ? months[months.length - 1] : null;
+
+  const dlg = $.dialog($.id('monthSetupDialog'));
+  $.html($.id('monthSetupTitle')).textContent = `Set up ${monthLabel(monthKey)}`;
+  const amount = $.input($.id('monthSetupAmount'));
+  amount.value = prev ? (prev.available / 100).toFixed(2) : '';
+
+  const copyField = $.html($.id('monthSetupCopyField'));
+  const copy = $.input($.id('monthSetupCopy'));
+  copyField.classList.toggle('hidden', isFirst);
+  if (prev) { $.html($.id('monthSetupCopyLabel')).textContent = `Copy ${monthLabel(prev.monthKey)}'s bills`; }
+  copy.checked = !isFirst;
+
+  dlg.dataset.monthKey = monthKey;
+  dlg.dataset.copyFrom = prev?.monthKey ?? '';
+  dlg.showModal();
+  amount.focus();
+}
+
+/** Open the month selector sheet, listing all months chronologically with the current one marked. */
+async function openSelector() {
+  const selectSheet = $.dialog($.id('monthSelectSheet'));
+  const months = await Months.list();
+  const list = $.html($.id('monthList'));
+  list.innerHTML = '';
+  for (const m of months) {
+    const li = document.createElement('li');
+    if (m.monthKey === selectedMonthKey) { li.className = 'selected'; }
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn';
+    btn.textContent = monthLabel(m.monthKey);
+    btn.addEventListener('click', () => {
+      void (async () => {
+        selectSheet.close();
+        await renderMonth(m.monthKey);
+      })();
+    });
+    li.append(btn);
+    list.append(li);
+  }
+  selectSheet.showModal();
+}
+
 export function setupMonth() {
-  // Month selector + setup dialog wiring is added in Task 13.
+  // Month title opens the selector sheet.
+  const selectSheet = $.dialog($.id('monthSelectSheet'));
+  $.button($.id('monthTitle')).addEventListener('click', () => void openSelector());
+  $.button($.id('monthSelectClose')).addEventListener('click', () => selectSheet.close());
+  selectSheet.addEventListener('click', (e) => { if (e.target === selectSheet) { selectSheet.close(); } });
+  $.button($.id('startMonthBtn')).addEventListener('click', () => {
+    void (async () => {
+      selectSheet.close();
+      await openMonthSetup(await nextMonthKey());
+    })();
+  });
+
+  // Setup dialog submit / cancel.
+  const setupDlg = $.dialog($.id('monthSetupDialog'));
+  $.button($.id('monthSetupClose')).addEventListener('click', () => setupDlg.close());
+  $.form($.id('monthSetupForm')).addEventListener('submit', (e) => {
+    e.preventDefault();
+    void (async () => {
+      const available = parseMoney($.input($.id('monthSetupAmount')).value);
+      if (available === null || available < 0) { return; } // required; invalid stays open
+      const monthKey = /** @type {string} */ (setupDlg.dataset.monthKey);
+      const copyFrom = setupDlg.dataset.copyFrom || null;
+      const shouldCopy = $.input($.id('monthSetupCopy')).checked && !$.html($.id('monthSetupCopyField')).classList.contains('hidden');
+      await Months.create({ monthKey, available, copyFromKey: shouldCopy ? copyFrom : null });
+      setupDlg.close();
+      await renderMonth(monthKey);
+    })();
+  });
 }
 
 /** Pick the initial month: current if it exists, else latest, else prompt setup. */
 export async function openInitialMonth() {
   const months = await Months.list();
   if (months.length === 0) {
-    // Task 13 opens the setup dialog here.
-    $.html($.id('monthTitle')).textContent = 'Start a month';
+    await openMonthSetup($.isoToday().slice(0, 7));
     return;
   }
   const currentKey = $.isoToday().slice(0, 7);
