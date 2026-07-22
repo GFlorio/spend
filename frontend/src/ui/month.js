@@ -36,18 +36,149 @@ export function monthLabel(monthKey) {
 /** Re-render the whole Month screen for the given month. @param {string} monthKey */
 export async function renderMonth(monthKey) {
   selectedMonthKey = monthKey;
-  const { view } = await buildView(monthKey);
+  const { view, bills } = await buildView(monthKey);
   $.html($.id('monthTitle')).textContent = monthLabel(monthKey);
-  // Status card + periods are rendered by renderStatus/renderPeriods (Tasks 14-15).
-  renderStatus(view);
+  renderStatus(view, bills);
   renderPeriods(view);
 }
 
-// Placeholders replaced in later tasks:
-/** @param {import('../compute.js').MonthView} view */
-function renderStatus(view) {
-  $.html($.id('statusCard')).textContent = `${formatMoney(view.safeToSpend)} available`;
+/** Rebuild the current month's rendering after a mutation. */
+async function refresh() {
+  if (selectedMonthKey) { await renderMonth(selectedMonthKey); }
 }
+
+let statusExpanded = false;
+
+/**
+ * Renders the collapsible monthly status card: collapsed shows the safe-to-spend hero,
+ * paid count, and reserved total; expanded also reveals the bill list and amount editor.
+ * @param {import('../compute.js').MonthView} view
+ * @param {import('../data.js').BillView[]} bills
+ */
+function renderStatus(view, bills) {
+  const card = $.html($.id('statusCard'));
+  card.innerHTML = '';
+
+  const hero = document.createElement('div');
+  hero.className = 'hero';
+  hero.textContent = `${formatMoney(view.safeToSpend)} available`;
+
+  const progress = document.createElement('div');
+  progress.className = 'bill-progress';
+  progress.textContent = `Bills: ${view.paidCount} of ${view.billCount} paid · ${formatMoney(view.billsReserved)} reserved`;
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'btn ghost small';
+  toggle.textContent = statusExpanded ? 'Hide details' : 'Show bills';
+  toggle.addEventListener('click', () => {
+    statusExpanded = !statusExpanded;
+    void refresh();
+  });
+
+  card.append(hero, progress, toggle);
+  if (statusExpanded) { card.append(renderBillList(bills), renderAmountEditor(view)); }
+}
+
+/**
+ * Renders the bill list with one-tap paid checkbox, rename, and actual-amount editing,
+ * plus an "+ Add bill" control.
+ * @param {import('../data.js').BillView[]} bills
+ * @returns {HTMLElement}
+ */
+function renderBillList(bills) {
+  const wrap = document.createElement('div');
+  wrap.className = 'bill-list';
+
+  for (const bill of bills) {
+    const row = document.createElement('div');
+    row.className = 'bill-row';
+
+    const pay = document.createElement('input');
+    pay.type = 'checkbox';
+    pay.checked = bill.paid;
+    pay.setAttribute('aria-label', `${bill.name} paid`);
+    pay.addEventListener('change', () => {
+      void (async () => {
+        if (pay.checked) { await Bills.markPaid(bill.id); } else { await Bills.markUnpaid(bill.id); }
+        await refresh();
+      })();
+    });
+
+    const name = document.createElement('button');
+    name.type = 'button';
+    name.className = 'btn ghost bill-name';
+    name.textContent = bill.name;
+    name.addEventListener('click', () => {
+      void (async () => {
+        const next = prompt('Rename bill', bill.name);
+        if (next?.trim()) {
+          await Bills.rename(bill.seriesId, next.trim());
+          await refresh();
+        }
+      })();
+    });
+
+    const amount = document.createElement('button');
+    amount.type = 'button';
+    amount.className = 'btn ghost bill-amount';
+    const shown = bill.paid ? (bill.actual ?? bill.expected) : bill.expected;
+    amount.textContent = shown !== bill.expected ? `${formatMoney(shown)} (exp ${formatMoney(bill.expected)})` : formatMoney(shown);
+    amount.addEventListener('click', () => {
+      void (async () => {
+        const entered = parseMoney(prompt('Actual amount', (shown / 100).toFixed(2)) ?? '');
+        if (entered !== null) {
+          await Bills.setActual(bill.id, entered);
+          await refresh();
+        }
+      })();
+    });
+
+    row.append(pay, name, amount);
+    wrap.append(row);
+  }
+
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'btn small';
+  add.textContent = '+ Add bill';
+  add.addEventListener('click', () => {
+    void (async () => {
+      const name = prompt('Bill name')?.trim();
+      if (!name) { return; }
+      const expected = parseMoney(prompt('Expected amount') ?? '');
+      if (expected === null) { return; }
+      await Bills.create({ monthKey: /** @type {string} */ (selectedMonthKey), name, expected });
+      await refresh();
+    })();
+  });
+  wrap.append(add);
+
+  return wrap;
+}
+
+/**
+ * Renders the "edit monthly amount" control.
+ * @param {import('../compute.js').MonthView} view
+ * @returns {HTMLElement}
+ */
+function renderAmountEditor(view) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn ghost small';
+  btn.textContent = `Monthly amount: ${formatMoney(view.available)} · Edit`;
+  btn.addEventListener('click', () => {
+    void (async () => {
+      const entered = parseMoney(prompt('Monthly available amount', (view.available / 100).toFixed(2)) ?? '');
+      if (entered !== null && entered >= 0) {
+        await Months.setAvailable(/** @type {string} */ (selectedMonthKey), entered);
+        await refresh();
+      }
+    })();
+  });
+  return btn;
+}
+
 /** @param {import('../compute.js').MonthView} view */
 function renderPeriods(view) {
   $.html($.id('periods')).textContent = `${view.periods.length} periods`;
