@@ -23,4 +23,14 @@ describe('parseMoney', () => {
     expect(parseMoney('abc')).toBeNull();
     expect(parseMoney('1.2.3')).toBeNull();
   });
+  test('rejects sub-cent precision (more than two decimals)', () => {
+    expect(parseMoney('1.005')).toBeNull();
+    expect(parseMoney('10.005')).toBeNull();
+  });
+  test('accepts a leading decimal point', () => {
+    expect(parseMoney('.5')).toBe(50);
+  });
+  test('normalizes negative zero to zero', () => {
+    expect(Object.is(parseMoney('-0'), 0)).toBe(true);
+  });
 });

@@ -24,8 +24,9 @@ export function formatMoney(minor, locale) {
 export function parseMoney(str) {
   if (typeof str !== 'string') { return null; }
   const cleaned = str.trim().replace(/[$\s]/g, '').replace(/,/g, '');
-  if (cleaned === '' || !/^-?\d*\.?\d+$/.test(cleaned)) { return null; }
+  if (!/^-?(\d+(\.\d{1,2})?|\.\d{1,2})$/.test(cleaned)) { return null; }
   const value = Number(cleaned);
   if (!Number.isFinite(value)) { return null; }
-  return Math.round(value * MINOR_UNITS);
+  const cents = Math.round(value * MINOR_UNITS);
+  return cents === 0 ? 0 : cents;
 }
