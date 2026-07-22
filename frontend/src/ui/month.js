@@ -127,7 +127,7 @@ function renderBillList(bills) {
     amount.addEventListener('click', () => {
       void (async () => {
         const entered = parseMoney(prompt('Actual amount', (shown / 100).toFixed(2)) ?? '');
-        if (entered !== null) {
+        if (entered !== null && entered >= 0) {
           await Bills.setActual(bill.id, entered);
           await refresh();
         }
@@ -147,7 +147,7 @@ function renderBillList(bills) {
       const name = prompt('Bill name')?.trim();
       if (!name) { return; }
       const expected = parseMoney(prompt('Expected amount') ?? '');
-      if (expected === null) { return; }
+      if (expected === null || expected < 0) { return; }
       await Bills.create({ monthKey: /** @type {string} */ (selectedMonthKey), name, expected });
       await refresh();
     })();
@@ -201,7 +201,9 @@ async function renderPeriods(view) {
 
     const range = document.createElement('div');
     range.className = 'range';
-    range.textContent = `${p.startDay}–${p.endDay}`;
+    const rangeText = `${p.startDay}–${p.endDay}`;
+    range.textContent = rangeText;
+    card.setAttribute('aria-label', `Period ${rangeText}`);
 
     const remaining = document.createElement('div');
     remaining.className = `remaining${p.remaining < 0 ? ' negative' : ''}`;
@@ -319,6 +321,7 @@ export function setupMonth() {
   // Setup dialog submit / cancel.
   const setupDlg = $.dialog($.id('monthSetupDialog'));
   $.button($.id('monthSetupClose')).addEventListener('click', () => setupDlg.close());
+  setupDlg.addEventListener('click', (e) => { if (e.target === setupDlg) { setupDlg.close(); } });
   $.form($.id('monthSetupForm')).addEventListener('submit', (e) => {
     e.preventDefault();
     void (async () => {
@@ -336,6 +339,7 @@ export function setupMonth() {
   // Activity dialog submit / cancel.
   const activityDlg = $.dialog($.id('activityDialog'));
   $.button($.id('activityClose')).addEventListener('click', () => activityDlg.close());
+  activityDlg.addEventListener('click', (e) => { if (e.target === activityDlg) { activityDlg.close(); } });
   $.form($.id('activityForm')).addEventListener('submit', (e) => {
     e.preventDefault();
     void (async () => {
