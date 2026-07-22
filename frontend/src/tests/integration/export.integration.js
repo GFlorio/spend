@@ -1,10 +1,7 @@
 import './setup.js';
 import { beforeEach, describe, expect, test } from 'vitest';
 import * as db from '../../db.js';
-
-async function resetTestDB() {
-  await db.resetDB();
-}
+import { resetTestDB } from './helpers.js';
 
 beforeEach(resetTestDB);
 
