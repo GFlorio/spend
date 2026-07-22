@@ -33,3 +33,20 @@ export function periodsForMonthKey(monthKey) {
   const [year, month] = monthKey.split('-').map(Number);
   return generatePeriods(year, month - 1);
 }
+
+/**
+ * Distributes an integer pool across periods proportionally by day count.
+ * Uses floor per period and assigns the whole residual to the last period,
+ * so the result always sums exactly to `pool`. Deterministic; handles negatives.
+ * @param {number} pool integer minor units (may be negative)
+ * @param {Period[]} periods non-empty
+ * @returns {number[]}
+ */
+export function allocate(pool, periods) {
+  if (periods.length === 0) { throw new Error('allocate: periods must be non-empty'); }
+  const totalDays = periods.reduce((sum, p) => sum + p.days, 0);
+  const alloc = periods.map((p) => Math.floor((pool * p.days) / totalDays));
+  const residual = pool - alloc.reduce((sum, a) => sum + a, 0);
+  alloc[alloc.length - 1] += residual;
+  return alloc;
+}

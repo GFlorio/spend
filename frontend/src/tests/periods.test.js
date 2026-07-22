@@ -34,3 +34,26 @@ describe('periodsForMonthKey', () => {
     expect(periodsForMonthKey('2026-07')).toEqual(generatePeriods(2026, 6));
   });
 });
+
+import { allocate } from '../periods.js';
+
+describe('allocate', () => {
+  const july = generatePeriods(2026, 6); // days [7,7,7,7,3], total 31
+
+  test('allocations always sum exactly to the pool', () => {
+    for (const pool of [60000, 100000, 1, 99999, 300000]) {
+      expect(allocate(pool, july).reduce((s, a) => s + a, 0)).toBe(pool);
+    }
+  });
+  test('residual lands on the last period', () => {
+    // floor(60000*7/31)=13548 x4 = 54192; floor(60000*3/31)=5806; residual 2 -> last 5808
+    expect(allocate(60000, july)).toEqual([13548, 13548, 13548, 13548, 5808]);
+  });
+  test('handles a negative pool deterministically and still sums to pool', () => {
+    const result = allocate(-5000, july);
+    expect(result.reduce((s, a) => s + a, 0)).toBe(-5000);
+  });
+  test('is deterministic (idempotent)', () => {
+    expect(allocate(12345, july)).toEqual(allocate(12345, july));
+  });
+});
