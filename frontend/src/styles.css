@@ -1,6 +1,67 @@
-:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+:root {
+  color-scheme: light dark;
+  --brand: #3b6ef5;
+  --positive: #1f8a55;
+  --warning: #b8860b;
+  --negative: #c0392b;
+  --bg: #f7fafc; --surface: #ffffff; --text: #1a1d21; --muted: #6b7280; --border: #e5e7eb;
+  --r-sm: 10px; --r-md: 12px; --r-lg: 16px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Shared dark palette */
+:root[data-theme="dark"] {
+  --bg: #121214; --surface: #1c1d21; --text: #f2f3f5; --muted: #9aa1ab; --border: #2c2e33;
+}
+/* Auto: follow the system */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    --bg: #121214; --surface: #1c1d21; --text: #f2f3f5; --muted: #9aa1ab; --border: #2c2e33;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); }
 .hidden { display: none !important; }
-.app { max-width: 640px; margin: 0 auto; padding: 16px 16px 80px; }
-.bottom-nav { position: fixed; inset: auto 0 0 0; display: flex; gap: 8px; padding: 8px; background: Canvas; border-top: 1px solid; }
-.tab { flex: 1; min-height: 44px; }
-.empty { opacity: 0.6; text-align: center; padding: 32px; }
+.app { max-width: 640px; margin: 0 auto; padding: var(--s4) var(--s4) 88px; }
+
+.month-title { font-size: 1.25rem; font-weight: 700; background: none; border: none; color: var(--text); padding: var(--s2) 0; min-height: 44px; cursor: pointer; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--s4); margin-bottom: var(--s4); }
+.status-card .hero { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.02em; }
+.status-card .bill-progress { color: var(--muted); margin-top: var(--s1); }
+
+.periods { display: flex; flex-direction: column; gap: var(--s3); }
+.period-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--s3) var(--s4); }
+.period-card.current { border-color: var(--brand); }
+.period-card .range { font-weight: 600; }
+.period-card .remaining { font-size: 1.1rem; font-weight: 700; }
+.period-card .remaining.negative { color: var(--negative); }
+.period-card .secondary { color: var(--muted); font-size: 0.85rem; }
+
+.btn { min-height: 44px; padding: 0 var(--s4); border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font: inherit; }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn.ghost { border-color: transparent; background: none; }
+.btn.small { min-height: 36px; padding: 0 var(--s3); }
+
+.bottom-nav { position: fixed; inset: auto 0 0 0; display: flex; gap: var(--s2); padding: var(--s2); background: var(--surface); border-top: 1px solid var(--border); }
+.tab { flex: 1; min-height: 44px; border: none; background: none; color: var(--muted); font: inherit; cursor: pointer; border-radius: var(--r-sm); }
+.tab.active { color: var(--brand); font-weight: 600; }
+
+dialog { border: none; border-radius: var(--r-lg) var(--r-lg) 0 0; padding: 0; width: 100%; max-width: 640px; margin: auto auto 0; background: var(--surface); color: var(--text); }
+dialog::backdrop { background: rgba(0,0,0,0.4); }
+.sheet-inner, .config-inner { padding: var(--s4); display: flex; flex-direction: column; gap: var(--s4); }
+.sheet-header, .config-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+.field { display: flex; flex-direction: column; gap: var(--s1); }
+.field > input[type="text"] { min-height: 44px; padding: 0 var(--s3); border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg); color: var(--text); font: inherit; }
+.copy-field { flex-direction: row; align-items: center; gap: var(--s2); }
+
+.bill-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) 0; border-top: 1px solid var(--border); }
+.bill-row .bill-name { flex: 1; }
+.bill-row .bill-amount { font-variant-numeric: tabular-nums; }
+.bill-row .paid-badge { color: var(--positive); font-size: 0.8rem; }
+
+.month-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.month-list li button { width: 100%; text-align: left; }
+.month-list li.selected button { border-color: var(--brand); }
+.empty, .config-note { color: var(--muted); }
