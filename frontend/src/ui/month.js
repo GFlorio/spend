@@ -39,7 +39,7 @@ export async function renderMonth(monthKey) {
   const { view, bills } = await buildView(monthKey);
   $.html($.id('monthTitle')).textContent = monthLabel(monthKey);
   renderStatus(view, bills);
-  renderPeriods(view);
+  await renderPeriods(view);
 }
 
 /** Rebuild the current month's rendering after a mutation. */
@@ -179,9 +179,71 @@ function renderAmountEditor(view) {
   return btn;
 }
 
-/** @param {import('../compute.js').MonthView} view */
-function renderPeriods(view) {
-  $.html($.id('periods')).textContent = `${view.periods.length} periods`;
+/** Index of the period containing today, or -1 if the selected month is not the current month. @param {import('../compute.js').MonthView} view */
+function currentPeriodIndex(view) {
+  const todayKey = $.isoToday();
+  if (todayKey.slice(0, 7) !== selectedMonthKey) { return -1; }
+  const day = Number(todayKey.slice(8, 10));
+  const p = view.periods.find((x) => day >= x.startDay && day <= x.endDay);
+  return p ? p.index : -1;
+}
+
+/** Renders period cards: date range, remaining/allocated, current-period emphasis, and expense list. @param {import('../compute.js').MonthView} view */
+async function renderPeriods(view) {
+  const container = $.html($.id('periods'));
+  container.innerHTML = '';
+  const activities = await Activities.listForMonth(/** @type {string} */ (selectedMonthKey));
+  const current = currentPeriodIndex(view);
+
+  for (const p of view.periods) {
+    const card = document.createElement('section');
+    card.className = `period-card${p.index === current ? ' current' : ''}`;
+
+    const range = document.createElement('div');
+    range.className = 'range';
+    range.textContent = `${p.startDay}–${p.endDay}`;
+
+    const remaining = document.createElement('div');
+    remaining.className = `remaining${p.remaining < 0 ? ' negative' : ''}`;
+    remaining.textContent = `${formatMoney(p.remaining)} left of ${formatMoney(p.allocation)}`;
+
+    const secondary = document.createElement('div');
+    secondary.className = 'secondary';
+    secondary.textContent = `${formatMoney(p.spent)} of ${formatMoney(p.allocation)}`;
+
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'btn small';
+    add.textContent = '+ Add';
+    add.addEventListener('click', () => openActivity(p.index));
+
+    card.append(range, remaining, secondary, add);
+
+    const periodActivities = activities.filter((a) => a.periodIndex === p.index);
+    if (periodActivities.length) {
+      const list = document.createElement('div');
+      list.className = 'expense-list';
+      for (const a of periodActivities) {
+        const item = document.createElement('div');
+        item.className = 'secondary';
+        item.textContent = `${formatMoney(a.amount)} ${a.description}`.trim();
+        list.append(item);
+      }
+      card.append(list);
+    }
+    container.append(card);
+  }
+}
+
+/** Opens the activity dialog for a source period. @param {number} periodIndex */
+function openActivity(periodIndex) {
+  const dlg = $.dialog($.id('activityDialog'));
+  dlg.dataset.periodIndex = String(periodIndex);
+  $.input($.id('activityAmount')).value = '';
+  $.input($.id('activityDescription')).value = '';
+  $.html($.id('activitySource')).textContent = `From period ${periodIndex + 1}`;
+  dlg.showModal();
+  $.input($.id('activityAmount')).focus();
 }
 
 /** Next month key after the latest existing month, else the current month. */
@@ -268,6 +330,26 @@ export function setupMonth() {
       await Months.create({ monthKey, available, copyFromKey: shouldCopy ? copyFrom : null });
       setupDlg.close();
       await renderMonth(monthKey);
+    })();
+  });
+
+  // Activity dialog submit / cancel.
+  const activityDlg = $.dialog($.id('activityDialog'));
+  $.button($.id('activityClose')).addEventListener('click', () => activityDlg.close());
+  $.form($.id('activityForm')).addEventListener('submit', (e) => {
+    e.preventDefault();
+    void (async () => {
+      const amount = parseMoney($.input($.id('activityAmount')).value);
+      if (amount === null || amount <= 0) { return; } // zero/blank cannot be saved
+      const periodIndex = Number(activityDlg.dataset.periodIndex);
+      await Activities.createExpense({
+        monthKey: /** @type {string} */ (selectedMonthKey),
+        periodIndex,
+        amount,
+        description: $.input($.id('activityDescription')).value.trim(),
+      });
+      activityDlg.close();
+      await renderMonth(/** @type {string} */ (selectedMonthKey));
     })();
   });
 }
