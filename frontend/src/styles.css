@@ -1,0 +1,6 @@
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+.hidden { display: none !important; }
+.app { max-width: 640px; margin: 0 auto; padding: 16px 16px 80px; }
+.bottom-nav { position: fixed; inset: auto 0 0 0; display: flex; gap: 8px; padding: 8px; background: Canvas; border-top: 1px solid; }
+.tab { flex: 1; min-height: 44px; }
+.empty { opacity: 0.6; text-align: center; padding: 32px; }

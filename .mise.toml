@@ -1,0 +1,64 @@
+[tools]
+node = "24"
+
+[env]
+_.path = ["{{config_root}}/node_modules/.bin", "{{config_root}}/frontend/node_modules/.bin"]
+
+[tasks.bootstrap]
+run = ["npm ci", "cd frontend && npx playwright install --with-deps"]
+
+[tasks.dev]
+description = "Start Vite dev server"
+run = "cd frontend && npm run dev -- --host"
+
+[tasks.build]
+description = "Build for production"
+run = "npm --workspace frontend run build"
+
+[tasks.preview]
+description = "Preview the production build"
+run = "cd frontend && npm run preview -- --host"
+
+[tasks.lint]
+description = "Biome linter"
+run = "biome lint frontend/"
+
+[tasks.lint-fix]
+description = "Biome linter with auto-fix"
+run = "biome lint --write frontend/"
+
+[tasks.typecheck]
+description = "TypeScript type check via JSDoc (no emit)"
+run = "tsc -p frontend/jsconfig.json --noEmit"
+
+[tasks.full-lint]
+description = "Biome + TypeScript"
+run = ["mise run lint-fix", "mise run typecheck"]
+
+[tasks.test-unit]
+description = "Vitest unit + integration (one-shot)"
+run = "npm --workspace frontend run test"
+
+[tasks.test-unit-watch]
+description = "Vitest in watch mode"
+run = "npm --workspace frontend run test:watch"
+
+[tasks.test-unit-file]
+description = "Single vitest file: mise run test-unit-file src/tests/foo.test.js"
+run = "npm --workspace frontend run test -- {{arg(name='file')}}"
+
+[tasks.e2e]
+description = "Playwright E2E (headless)"
+run = "npm --workspace frontend run e2e"
+
+[tasks.e2e-ui]
+description = "Playwright with interactive UI"
+run = "npm --workspace frontend run e2e:ui"
+
+[tasks.e2e-file]
+description = "Single E2E file: mise run e2e-file tests-e2e/foo.spec.js"
+run = "npm --workspace frontend run e2e -- {{arg(name='file')}}"
+
+[tasks.test]
+description = "Unit + E2E sequentially"
+run = ["mise run test-unit", "mise run e2e"]
