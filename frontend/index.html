@@ -100,6 +100,15 @@
       <button type="submit" class="btn primary" id="activitySave">Save</button>
     </form>
   </dialog>
+
+  <dialog id="billScopeDialog" aria-label="Apply to which months">
+    <div class="sheet-inner">
+      <div class="sheet-header"><span id="billScopeTitle">Apply change</span>
+        <button type="button" class="btn ghost" id="billScopeClose" aria-label="Close">✕</button></div>
+      <button type="button" class="btn" id="billScopeThis">This month only</button>
+      <button type="button" class="btn" id="billScopeForward">This and following months</button>
+    </div>
+  </dialog>
 </div>
 <script type="module" src="/src/main.js"></script>
 </body>

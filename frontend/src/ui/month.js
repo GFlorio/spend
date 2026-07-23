@@ -4,6 +4,37 @@ import { formatMoney, parseMoney } from '../money.js';
 import * as $ from '../utils.js';
 import { openActivityCreate, openActivityEdit, setupActivity } from './activity.js';
 
+/**
+ * Opens the scope chooser and resolves to the selected scope, or null if dismissed.
+ * @param {string} title
+ * @returns {Promise<'thisMonth'|'forward'|null>}
+ */
+function chooseScope(title) {
+  return new Promise((resolve) => {
+    const dlg = $.dialog($.id('billScopeDialog'));
+    $.html($.id('billScopeTitle')).textContent = title;
+    /** @param {'thisMonth'|'forward'|null} value */
+    const done = (value) => { dlg.close(); resolve(value); };
+    const thisBtn = $.button($.id('billScopeThis'));
+    const fwdBtn = $.button($.id('billScopeForward'));
+    const closeBtn = $.button($.id('billScopeClose'));
+    const onThis = () => finish('thisMonth');
+    const onFwd = () => finish('forward');
+    const onClose = () => finish(null);
+    /** @param {'thisMonth'|'forward'|null} value */
+    function finish(value) {
+      thisBtn.removeEventListener('click', onThis);
+      fwdBtn.removeEventListener('click', onFwd);
+      closeBtn.removeEventListener('click', onClose);
+      done(value);
+    }
+    thisBtn.addEventListener('click', onThis);
+    fwdBtn.addEventListener('click', onFwd);
+    closeBtn.addEventListener('click', onClose);
+    dlg.showModal();
+  });
+}
+
 /** @type {string|null} */
 let selectedMonthKey = null;
 /** @type {import('../compute.js').MonthView|null} */
@@ -133,15 +164,35 @@ function renderBillList(bills) {
     amount.textContent = shown !== bill.expected ? `${formatMoney(shown)} (exp ${formatMoney(bill.expected)})` : formatMoney(shown);
     amount.addEventListener('click', () => {
       void (async () => {
-        const entered = parseMoney(prompt('Actual amount', (shown / 100).toFixed(2)) ?? '');
-        if (entered !== null && entered >= 0) {
-          await Bills.setActual(bill.id, entered);
-          await refresh();
+        if (bill.paid) {
+          const entered = parseMoney(prompt('Actual amount', ((bill.actual ?? bill.expected) / 100).toFixed(2)) ?? '');
+          if (entered !== null && entered >= 0) { await Bills.setActual(bill.id, entered); await refresh(); }
+          return;
         }
+        const entered = parseMoney(prompt('Expected amount', (bill.expected / 100).toFixed(2)) ?? '');
+        if (entered === null || entered < 0) { return; }
+        const scope = await chooseScope('Change expected amount');
+        if (!scope) { return; }
+        await Bills.setExpected(bill.id, entered, scope);
+        await refresh();
       })();
     });
 
-    row.append(pay, name, amount);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn ghost small bill-remove';
+    remove.textContent = '🗑';
+    remove.setAttribute('aria-label', `Remove ${bill.name}`);
+    remove.addEventListener('click', () => {
+      void (async () => {
+        if (bill.paid && !confirm(`${bill.name} is paid. Remove it anyway?`)) { return; }
+        const scope = await chooseScope('Remove bill');
+        if (!scope) { return; }
+        await Bills.remove(bill.id, scope);
+        await refresh();
+      })();
+    });
+    row.append(pay, name, amount, remove);
     wrap.append(row);
   }
 
