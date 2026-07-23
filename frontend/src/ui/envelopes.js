@@ -29,11 +29,13 @@ export async function renderEnvelopes() {
     btn.type = 'button';
     btn.className = 'btn envelope-row';
     const sign = e.balance < 0 ? 'negative' : e.balance === 0 ? 'zero' : 'positive';
-    btn.innerHTML = `<span class="envelope-name">${e.name}</span>`;
+    const name = document.createElement('span');
+    name.className = 'envelope-name';
+    name.textContent = e.name;
     const bal = document.createElement('span');
     bal.className = `envelope-balance ${sign}`;
     bal.textContent = e.balance < 0 ? `−${formatMoney(-e.balance)}` : formatMoney(e.balance);
-    btn.append(bal);
+    btn.append(name, bal);
     btn.addEventListener('click', () => { void renderEnvelopeDetail(e.id); });
     li.append(btn);
     list.append(li);
@@ -61,9 +63,16 @@ async function renderEnvelopeDetail(envelopeId) {
     const sign = row.direction === 'in' ? '+' : '−';
     const context = `${monthLabel(row.monthKey)} · ${periodRange(periodsForMonthKey(row.monthKey), row.periodIndex)}`;
     const label = row.direction === 'in' ? `From ${counterpartyText(nameOf, row)}` : `To ${counterpartyText(nameOf, row)}`;
-    li.innerHTML = `<span class="history-amount ${row.direction}">${sign}${formatMoney(row.amount)}</span>` +
-      `<span class="history-label">${label}${row.description ? ` — ${row.description}` : ''}</span>` +
-      `<span class="history-context">${context}</span>`;
+    const amountSpan = document.createElement('span');
+    amountSpan.className = `history-amount ${row.direction}`;
+    amountSpan.textContent = `${sign}${formatMoney(row.amount)}`;
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'history-label';
+    labelSpan.textContent = `${label}${row.description ? ` — ${row.description}` : ''}`;
+    const contextSpan = document.createElement('span');
+    contextSpan.className = 'history-context';
+    contextSpan.textContent = context;
+    li.append(amountSpan, labelSpan, contextSpan);
     list.append(li);
   }
 }
