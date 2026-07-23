@@ -92,15 +92,13 @@ Activity = {
 - `outside` is a **source** only, and only when the destination is an envelope.
 - `wholeMonth` is a source only (funds a destination proportionally from the month).
 
-### 1.4 DB migration v1 → v2
+### 1.4 DB migration v1 → v2 (complete wipe)
 
-Bump `DB_VERSION` to 2. In `onupgradeneeded`:
-- Create the `envelopes` store (`keyPath:'id'`, no indexes).
-- Normalize existing activities: `destination:'spent'` (string) → `{ type:'spent' }`. Existing
-  single-period allocations (`source:{type:'period',periodIndex}`) are already shape-compatible.
-
-The migration must be idempotent-safe: guard store creation with `contains(name)` as the
-current code does.
+There are no real users, so v2 is a **clean wipe** — no data-preserving migration and no
+activity-normalization step. Bump `DB_VERSION` to 2. In `onupgradeneeded`, delete any existing
+object stores and recreate all stores fresh (now including `envelopes`, `keyPath:'id'`, no
+indexes). Because the store shapes are created from scratch, all new records use the generalized
+`Activity` shape from the start; there is no legacy `destination:'spent'` string to normalize.
 
 ### 1.5 Export
 
@@ -307,9 +305,10 @@ Each phase is TDD and ends green on `mise run full-lint` + its tests.
 - **F. Integration + E2E + polish.** Full integration suite and thin E2E smoke; `styles.css` for
   the new components; final `full-lint`.
 
-## Open risks
+## Resolved decisions
 
-- **Global recalculation cost:** deriving envelope balances scans all activities. At prototype
-  scale this is negligible; revisit only if profiling shows otherwise.
-- **`forward` bill edits** touch only *existing* later months. Confirm this matches the intent
-  that future months inherit through the copy step rather than through retroactive writes.
+- **Global recalculation cost:** deriving envelope balances scans all activities. Accepted as
+  fine at prototype scale; revisit only if profiling ever shows otherwise.
+- **`forward` bill edits** touch only *existing* later months by design. Months created later
+  inherit the new value through the month-creation copy step, not through retroactive writes.
+- **DB v2 is a clean wipe** (see §1.4) — no user data to preserve.
