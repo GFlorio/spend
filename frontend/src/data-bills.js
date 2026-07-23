@@ -77,4 +77,34 @@ export const Bills = {
     await db.put('billSeries', next);
     return next;
   },
+
+  /**
+   * @param {string} occId @param {number} expected @param {'thisMonth'|'forward'} scope
+   * @returns {Promise<BillOccurrence>}
+   */
+  async setExpected(occId, expected, scope) {
+    const occ = await loadOccurrence(occId);
+    const targets = scope === 'forward'
+      ? (await db.getAllByIndex('billOccurrences', 'by_series', occ.seriesId)).filter((o) => o.monthKey >= occ.monthKey)
+      : [occ];
+    const timestamp = now();
+    for (const target of targets) {
+      await db.put('billOccurrences', { ...target, expected, updatedAt: timestamp });
+    }
+    return { ...occ, expected, updatedAt: timestamp };
+  },
+
+  /**
+   * @param {string} occId @param {'thisMonth'|'forward'} scope
+   * @returns {Promise<void>}
+   */
+  async remove(occId, scope) {
+    const occ = await loadOccurrence(occId);
+    const targets = scope === 'forward'
+      ? (await db.getAllByIndex('billOccurrences', 'by_series', occ.seriesId)).filter((o) => o.monthKey >= occ.monthKey)
+      : [occ];
+    for (const target of targets) {
+      await db.del('billOccurrences', target.id);
+    }
+  },
 };
