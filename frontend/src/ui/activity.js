@@ -111,7 +111,7 @@ function renderSources() {
     amount.inputMode = 'decimal';
     amount.className = 'source-amount';
     amount.value = (row.amount / 100).toFixed(2);
-    amount.disabled = isLast && state.rows.length > 1; // last is derived
+    amount.disabled = isLast; // last is derived; the sole row mirrors the total
     amount.setAttribute('aria-label', `${label.textContent} amount`);
     amount.addEventListener('input', () => {
       const parsed = parseMoney(amount.value);
@@ -189,7 +189,11 @@ function addSource() {
   candidates.push({ type: 'wholeMonth' });
   for (const e of state.envelopes) { candidates.push({ type: 'envelope', envelopeId: e.id }); }
   if (state.destination.type === 'envelope') { candidates.push({ type: 'outside' }); }
-  const available = candidates.filter((c) => !used.some((u) => sameRef(u, c)) && !(state.destination.type === 'period' && c.type === 'period' && c.periodIndex === state.destination.periodIndex));
+  /** @type {Source|null} */
+  let asSource = null;
+  if (state.destination.type === 'envelope') { asSource = { type: 'envelope', envelopeId: state.destination.envelopeId }; }
+  else if (state.destination.type === 'period') { asSource = { type: 'period', periodIndex: state.destination.periodIndex }; }
+  const available = candidates.filter((c) => !used.some((u) => sameRef(u, c)) && !(asSource && sameRef(asSource, c)));
 
   // Build a tiny picker via prompt of numbered options plus new-envelope.
   const labels = available.map((c, i) => `${i + 1}. ${describeSource(c, envName, periods())}`);
@@ -241,10 +245,21 @@ function onDestinationChange(value) {
 
 async function save() {
   if (!isValid()) { return; }
-  // Materialise pending new envelopes, then rewrite temp ids.
+  // Only materialise pending envelopes still referenced by the destination or a source.
+  /** @type {Set<string>} */
+  const referenced = new Set();
+  if (state.destination.type === 'envelope' && state.pending.has(state.destination.envelopeId)) {
+    referenced.add(state.destination.envelopeId);
+  }
+  for (const row of state.rows) {
+    if (row.source.type === 'envelope' && state.pending.has(row.source.envelopeId)) {
+      referenced.add(row.source.envelopeId);
+    }
+  }
   /** @type {Map<string,string>} tempId -> realId */
   const idMap = new Map();
   for (const [tempId, name] of state.pending) {
+    if (!referenced.has(tempId)) { continue; }
     const created = await Envelopes.create({ name });
     idMap.set(tempId, created.id);
   }
