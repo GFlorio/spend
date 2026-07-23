@@ -77,6 +77,7 @@ function render() {
   const error = destinationConflicts() ? 'A source cannot equal the destination.' : '';
   $.html($.id('activityError')).textContent = error;
   $.button($.id('activitySave')).disabled = !isValid();
+  $.button($.id('activityDelete')).classList.toggle('hidden', state.mode !== 'edit');
 }
 
 function renderDestination() {
@@ -343,5 +344,14 @@ export function setupActivity(saved) {
   $.form($.id('activityForm')).addEventListener('submit', (e) => {
     e.preventDefault();
     void save();
+  });
+
+  $.button($.id('activityDelete')).addEventListener('click', () => {
+    void (async () => {
+      if (state.mode !== 'edit' || !state.editingId) { return; }
+      await Activities.remove(state.editingId);
+      $.dialog($.id('activityDialog')).close();
+      await onSaved();
+    })();
   });
 }

@@ -1,5 +1,6 @@
 import './setup.js';
 import { beforeEach, describe, expect, test } from 'vitest';
+import { computeMonth } from '../../compute.js';
 import * as db from '../../db.js';
 import { Activities } from '../../data-activities.js';
 
@@ -43,5 +44,25 @@ describe('Activities', () => {
     await Activities.remove(a.id);
     expect(await Activities.get(a.id)).toBeUndefined();
     expect(await Activities.listForMonth('2026-07')).toEqual([]);
+  });
+});
+
+describe('Activities — edit/delete reverse effects', () => {
+  test('reducing an expense amount is a partial refund; deleting is a full refund', async () => {
+    const a = await Activities.createExpense({ monthKey: '2026-07', periodIndex: 0, amount: 5000 });
+    const acts1 = await Activities.listForMonth('2026-07');
+    const v1 = computeMonth({ monthKey: '2026-07', available: 300000, bills: [], activities: acts1 });
+    expect(v1.safeToSpend).toBe(295000);
+
+    await Activities.update(a.id, {
+      destination: { type: 'spent' }, amount: 2000, description: '',
+      allocations: [{ source: { type: 'period', periodIndex: 0 }, amount: 2000 }],
+    });
+    const acts2 = await Activities.listForMonth('2026-07');
+    expect(computeMonth({ monthKey: '2026-07', available: 300000, bills: [], activities: acts2 }).safeToSpend).toBe(298000);
+
+    await Activities.remove(a.id);
+    const acts3 = await Activities.listForMonth('2026-07');
+    expect(computeMonth({ monthKey: '2026-07', available: 300000, bills: [], activities: acts3 }).safeToSpend).toBe(300000);
   });
 });
