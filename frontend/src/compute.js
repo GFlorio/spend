@@ -7,7 +7,7 @@ import { allocate, periodsForMonthKey } from './periods.js';
  * @typedef {import('./data-activities.js').Allocation} Allocation
  * @typedef {{ paid:boolean, actual:number|null, expected:number }} BillInput
  * @typedef {{ destination:Destination, amount:number, allocations:Allocation[] }} ActivityInput
- * @typedef {Period & { allocation:number, carryIn:number, transferIn:number, out:number, spent:number, remaining:number, completed:boolean, openFunds:boolean }} PeriodView
+ * @typedef {Period & { allocation:number, carryIn:number, transferIn:number, out:number, wholeMonthDebit:number, spent:number, remaining:number, completed:boolean, openFunds:boolean }} PeriodView
  * @typedef {{ available:number, billsReserved:number, paidCount:number, billCount:number, spendingPool:number, safeToSpend:number, hasOpenFunds:boolean, periods:PeriodView[] }} MonthView
  * @typedef {import('./data-activities.js').Activity} Activity
  * @typedef {import('./data-envelopes.js').Envelope} Envelope
@@ -80,6 +80,7 @@ export function computeMonth({ monthKey, available, bills, activities, todayKey 
       carryIn: thisCarryIn,
       transferIn: transferIn[i],
       out: out[i],
+      wholeMonthDebit: wholeMonthDebit[i],
       spent: spent[i],
       remaining,
       completed,

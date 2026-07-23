@@ -308,7 +308,6 @@ async function renderPeriods(view) {
         void openActivityCreate({
           monthKey: /** @type {string} */ (selectedMonthKey),
           periodIndex: p.index,
-          view,
           preset: { destination, amount: p.remaining },
         });
       });
@@ -333,6 +332,7 @@ async function renderPeriods(view) {
         p.carryIn ? `Carried deficit ${formatMoney(p.carryIn)}` : '',
         p.transferIn ? `Transfers in ${formatMoney(p.transferIn)}` : '',
         p.out ? `Out ${formatMoney(-p.out)}` : '',
+        p.wholeMonthDebit ? `Whole-month funding ${formatMoney(-p.wholeMonthDebit)}` : '',
         `Remaining ${formatMoney(p.remaining)}`,
       ].filter(Boolean);
       breakdown.innerHTML = rows.map((r) => `<div>${r}</div>`).join('');
@@ -349,8 +349,7 @@ async function renderPeriods(view) {
         item.className = 'btn ghost expense-item';
         item.textContent = `${formatMoney(a.amount)} ${a.description}`.trim();
         item.addEventListener('click', () => {
-          const view = lastView;
-          if (view) { void openActivityEdit({ monthKey: /** @type {string} */ (selectedMonthKey), view, activity: a }); }
+          if (lastView) { void openActivityEdit({ monthKey: /** @type {string} */ (selectedMonthKey), activity: a }); }
         });
         list.append(item);
       }
@@ -362,9 +361,8 @@ async function renderPeriods(view) {
 
 /** Opens the universal form for a new expense from a source period. @param {number} periodIndex */
 function openActivity(periodIndex) {
-  const view = lastView;
-  if (!view) { return; }
-  void openActivityCreate({ monthKey: /** @type {string} */ (selectedMonthKey), periodIndex, view });
+  if (!lastView) { return; }
+  void openActivityCreate({ monthKey: /** @type {string} */ (selectedMonthKey), periodIndex });
 }
 
 /** Next month key after the latest existing month, else the current month. */

@@ -7,7 +7,6 @@ import { describeDestination, describeSource } from './labels.js';
 
 /** @typedef {import('../data.js').Source} Source */
 /** @typedef {import('../data.js').Destination} Destination */
-/** @typedef {import('../compute.js').MonthView} MonthView */
 
 /** @type {() => Promise<void>} */
 let onSaved = async () => {};
@@ -22,6 +21,7 @@ const state = {
   /** @type {{ source:Source, amount:number }[]} */ rows: [],
   /** @type {{ id:string, name:string, balance:number }[]} */ envelopes: [],
   /** @type {Map<string,string>} tempId -> name for envelopes created on save */ pending: new Map(),
+  /** @type {import('../data.js').Activity|null} the persisted activity being edited, for projection baselines */ originalActivity: null,
 };
 
 /** @param {string} id */
@@ -154,6 +154,28 @@ function renderBar() {
   });
 }
 
+/**
+ * The given envelope's contribution from the activity currently being edited (0 in create
+ * mode, or when the original activity doesn't reference this envelope). Used to back out
+ * this activity's own persisted effect from `balance` so the projection shows a correct
+ * before/after for the activity being edited, instead of double-counting it.
+ * @param {string} envelopeId
+ */
+function originalContribution(envelopeId) {
+  const original = state.originalActivity;
+  if (!original) { return 0; }
+  let contribution = 0;
+  if (original.destination.type === 'envelope' && original.destination.envelopeId === envelopeId) {
+    contribution += original.amount;
+  }
+  for (const alloc of original.allocations) {
+    if (alloc.source.type === 'envelope' && alloc.source.envelopeId === envelopeId) {
+      contribution -= alloc.amount;
+    }
+  }
+  return contribution;
+}
+
 function renderProjection() {
   const el = $.html($.id('activityProjection'));
   /** @type {string[]} */
@@ -161,13 +183,19 @@ function renderProjection() {
   const destination = state.destination;
   if (destination.type === 'envelope') {
     const e = state.envelopes.find((x) => x.id === destination.envelopeId);
-    if (e) { lines.push(`${e.name}: ${formatMoney(e.balance)} → ${formatMoney(e.balance + state.total)}`); }
+    if (e) {
+      const baseline = e.balance - originalContribution(e.id);
+      lines.push(`${e.name}: ${formatMoney(baseline)} → ${formatMoney(baseline + state.total)}`);
+    }
   }
   for (const row of state.rows) {
     const source = row.source;
     if (source.type === 'envelope') {
       const e = state.envelopes.find((x) => x.id === source.envelopeId);
-      if (e) { lines.push(`${e.name}: ${formatMoney(e.balance)} → ${formatMoney(e.balance - row.amount)}`); }
+      if (e) {
+        const baseline = e.balance - originalContribution(e.id);
+        lines.push(`${e.name}: ${formatMoney(baseline)} → ${formatMoney(baseline - row.amount)}`);
+      }
     }
   }
   el.textContent = lines.join('  ·  ');
@@ -285,13 +313,14 @@ async function loadEnvelopes() {
   state.envelopes = await Envelopes.withBalances();
 }
 
-/** @param {{ monthKey:string, periodIndex:number, view:MonthView, preset?:{destination:Destination, amount:number} }} opts */
+/** @param {{ monthKey:string, periodIndex:number, preset?:{destination:Destination, amount:number} }} opts */
 export async function openActivityCreate({ monthKey, periodIndex, preset }) {
   state.mode = 'create';
   state.editingId = null;
   state.monthKey = monthKey;
   state.periodIndex = periodIndex;
   state.pending = new Map();
+  state.originalActivity = null;
   state.destination = preset?.destination ?? { type: 'spent' };
   state.total = preset?.amount ?? 0;
   state.rows = [{ source: { type: 'period', periodIndex }, amount: state.total }];
@@ -303,13 +332,14 @@ export async function openActivityCreate({ monthKey, periodIndex, preset }) {
   $.input($.id('activityAmount')).focus();
 }
 
-/** @param {{ monthKey:string, view:MonthView, activity:import('../data.js').Activity }} opts */
+/** @param {{ monthKey:string, activity:import('../data.js').Activity }} opts */
 export async function openActivityEdit({ monthKey, activity }) {
   state.mode = 'edit';
   state.editingId = activity.id;
   state.monthKey = monthKey;
   state.periodIndex = activity.periodIndex;
   state.pending = new Map();
+  state.originalActivity = activity;
   state.destination = activity.destination;
   state.total = activity.amount;
   state.rows = activity.allocations.map((a) => ({ source: a.source, amount: a.amount }));
