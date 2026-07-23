@@ -21,16 +21,24 @@ function chooseScope(title) {
     const onThis = () => finish('thisMonth');
     const onFwd = () => finish('forward');
     const onClose = () => finish(null);
+    const onCancel = () => finish(null);
+    let settled = false;
     /** @param {'thisMonth'|'forward'|null} value */
     function finish(value) {
+      if (settled) {
+        return;
+      }
+      settled = true;
       thisBtn.removeEventListener('click', onThis);
       fwdBtn.removeEventListener('click', onFwd);
       closeBtn.removeEventListener('click', onClose);
+      dlg.removeEventListener('cancel', onCancel);
       done(value);
     }
     thisBtn.addEventListener('click', onThis);
     fwdBtn.addEventListener('click', onFwd);
     closeBtn.addEventListener('click', onClose);
+    dlg.addEventListener('cancel', onCancel);
     dlg.showModal();
   });
 }
