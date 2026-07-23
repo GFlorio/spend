@@ -19,7 +19,18 @@
       <section id="periods" class="periods"></section>
     </section>
     <section id="page-envelopes" class="page hidden">
-      <p class="empty">Envelopes arrive in a later update.</p>
+      <div id="envelopeOverview">
+        <h2 class="screen-title">Envelopes</h2>
+        <ul id="envelopeList" class="envelope-list"></ul>
+        <p id="envelopeEmpty" class="empty hidden">No envelopes yet. Fund one from a period's + Add.</p>
+      </div>
+      <div id="envelopeDetail" class="hidden">
+        <button type="button" class="btn ghost small" id="envelopeBack">← All envelopes</button>
+        <!-- biome-ignore lint/a11y/useHeadingContent: text is set by envelopes.js at render time -->
+        <h2 id="envelopeDetailName" class="screen-title"></h2>
+        <div id="envelopeDetailBalance" class="hero"></div>
+        <ul id="envelopeHistory" class="history-list"></ul>
+      </div>
     </section>
   </main>
 
