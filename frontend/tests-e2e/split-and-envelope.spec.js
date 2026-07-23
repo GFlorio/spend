@@ -13,7 +13,7 @@ test('fund a new envelope from a period and see it on the Envelopes screen', asy
 
   // Open the universal form from the first period, move money to a new envelope.
   await page.locator('.period-card').first().getByRole('button', { name: '+ Add' }).click();
-  await page.getByLabel('Amount').fill('100');
+  await page.getByLabel('Amount', { exact: true }).fill('100');
 
   // Create a new envelope as the destination (prompt-driven).
   page.once('dialog', (d) => d.accept('Travel'));

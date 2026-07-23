@@ -18,7 +18,7 @@ test('first run: set up a month, then record an expense', async ({ page }) => {
 
   // Record an expense on the first period.
   await page.locator('.period-card').first().getByRole('button', { name: '+ Add' }).click();
-  await page.getByLabel('Amount').fill('50');
+  await page.getByLabel('Amount', { exact: true }).fill('50');
   await page.getByRole('button', { name: 'Save' }).click();
 
   await expect(page.locator('#statusCard .hero')).toContainText('$2,950.00 available');
