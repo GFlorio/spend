@@ -8,6 +8,8 @@ import { openActivityCreate, openActivityEdit, setupActivity } from './activity.
 let selectedMonthKey = null;
 /** @type {import('../compute.js').MonthView|null} */
 let lastView = null;
+/** @type {Set<number>} indices of expanded period cards */
+const expandedPeriods = new Set();
 
 export const getSelectedMonthKey = () => selectedMonthKey;
 
@@ -225,6 +227,58 @@ async function renderPeriods(view) {
     add.addEventListener('click', () => openActivity(p.index));
 
     card.append(range, remaining, secondary, add);
+
+    if (p.openFunds) {
+      const flag = document.createElement('div');
+      flag.className = 'open-funds';
+      flag.textContent = `Open funds: ${formatMoney(p.remaining)}`;
+      card.append(flag);
+
+      const move = document.createElement('button');
+      move.type = 'button';
+      move.className = 'btn small move-leftover';
+      move.textContent = 'Move leftover';
+      move.addEventListener('click', () => {
+        const view = lastView;
+        if (!view) { return; }
+        const nextIndex = p.index + 1 < view.periods.length ? p.index + 1 : p.index;
+        // Next period when one exists; for the final period the preset equals the source
+        // period, which flags a conflict so the user must pick an envelope (§11.4).
+        /** @type {import('../data.js').Destination} */
+        const destination = { type: 'period', periodIndex: nextIndex };
+        void openActivityCreate({
+          monthKey: /** @type {string} */ (selectedMonthKey),
+          periodIndex: p.index,
+          view,
+          preset: { destination, amount: p.remaining },
+        });
+      });
+      card.append(move);
+    }
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'btn ghost small';
+    toggle.textContent = expandedPeriods.has(p.index) ? 'Hide details' : 'Details';
+    toggle.addEventListener('click', () => {
+      if (expandedPeriods.has(p.index)) { expandedPeriods.delete(p.index); } else { expandedPeriods.add(p.index); }
+      void refresh();
+    });
+    card.append(toggle);
+
+    if (expandedPeriods.has(p.index)) {
+      const breakdown = document.createElement('div');
+      breakdown.className = 'breakdown secondary';
+      const rows = [
+        `Base ${formatMoney(p.allocation)}`,
+        p.carryIn ? `Carried deficit ${formatMoney(p.carryIn)}` : '',
+        p.transferIn ? `Transfers in ${formatMoney(p.transferIn)}` : '',
+        p.out ? `Out ${formatMoney(-p.out)}` : '',
+        `Remaining ${formatMoney(p.remaining)}`,
+      ].filter(Boolean);
+      breakdown.innerHTML = rows.map((r) => `<div>${r}</div>`).join('');
+      card.append(breakdown);
+    }
 
     const periodActivities = activities.filter((a) => a.periodIndex === p.index);
     if (periodActivities.length) {
