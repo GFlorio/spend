@@ -1,9 +1,8 @@
 import './setup.js';
 import { beforeEach, describe, expect, test } from 'vitest';
 import * as db from '../../db.js';
-import { resetTestDB } from './helpers.js';
 
-beforeEach(resetTestDB);
+beforeEach(async () => { await db.resetDB(); });
 
 describe('db.js raw IndexedDB wrapper', () => {
   test('put/get/getAll round-trip and index query', async () => {
@@ -17,11 +16,19 @@ describe('db.js raw IndexedDB wrapper', () => {
     expect(july.map((o) => o.id)).toEqual(['occ:a']);
   });
 
-  test('exportDB serialises every store', async () => {
+  test('envelopes store round-trips', async () => {
+    await db.put('envelopes', { id: 'env:1', name: 'Travel' });
+    expect(await db.getAll('envelopes')).toHaveLength(1);
+    expect(await db.get('envelopes', 'env:1')).toMatchObject({ name: 'Travel' });
+  });
+
+  test('exportDB serialises every store including envelopes', async () => {
     await db.put('months', { id: 'month:2026-07', monthKey: '2026-07', available: 1 });
+    await db.put('envelopes', { id: 'env:1', name: 'Travel' });
     const dump = await db.exportDB();
-    expect(dump.version).toBe(1);
+    expect(dump.version).toBe(2);
     expect(dump.months).toHaveLength(1);
+    expect(dump.envelopes).toHaveLength(1);
     expect(dump.activities).toEqual([]);
   });
 });
