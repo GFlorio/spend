@@ -68,3 +68,39 @@ dialog::backdrop { background: rgba(0,0,0,0.4); }
 .month-list li button { width: 100%; text-align: left; }
 .month-list li.selected button { border-color: var(--brand); }
 .empty, .config-note { color: var(--muted); }
+
+/* Universal activity form */
+.sources-head { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.sources { display: flex; flex-direction: column; gap: 8px; }
+.source-row { display: flex; align-items: center; gap: 8px; }
+.source-name { flex: 1; }
+.source-amount { width: 8rem; min-height: 44px; }
+.source-remove { min-width: 44px; }
+.alloc-bar { display: flex; height: 10px; border-radius: 10px; overflow: hidden; margin: 12px 0; background: color-mix(in srgb, Canvas 85%, GrayText); }
+.alloc-seg { height: 100%; }
+.alloc-seg-0 { background: var(--brand, #4f7cff); }
+.alloc-seg-1 { background: var(--positive, #2fa36b); }
+.alloc-seg-2 { background: var(--warning, #c98a00); }
+.alloc-seg-3 { background: color-mix(in srgb, var(--brand, #4f7cff) 60%, GrayText); }
+.activity-projection { font-size: 0.9rem; opacity: 0.85; margin: 4px 0; }
+.activity-error { color: var(--negative, #c0392b); font-size: 0.9rem; min-height: 1.2em; margin: 0; }
+
+/* Envelopes */
+.screen-title { font-size: 1.25rem; margin: 8px 0 16px; }
+.envelope-list, .history-list, .month-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.envelope-row { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 48px; }
+.envelope-balance.negative { color: var(--negative, #c0392b); }
+.envelope-balance.positive { color: var(--positive, #2fa36b); }
+.history-row { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, Canvas 80%, GrayText); }
+.history-amount { font-weight: 600; }
+.history-amount.out { color: var(--negative, #c0392b); }
+.history-context { grid-column: 1 / -1; font-size: 0.8rem; opacity: 0.7; }
+
+/* Period open funds + breakdown */
+.open-funds { color: var(--warning, #c98a00); font-size: 0.9rem; margin-top: 8px; }
+.move-leftover { margin-top: 4px; }
+.breakdown { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+
+/* Buttons + dialogs reused by Slice 2 */
+.btn.destructive { color: var(--negative, #c0392b); }
+.expense-item { text-align: left; width: 100%; }
