@@ -21,7 +21,8 @@ async function buildView(monthKey) {
       monthKey,
       available: month.available,
       bills: bills.map((b) => ({ paid: b.paid, actual: b.actual, expected: b.expected })),
-      activities: activities.map((a) => ({ periodIndex: a.periodIndex, amount: a.amount, destination: a.destination })),
+      activities,
+      todayKey: $.isoToday(),
     }),
   };
 }
