@@ -9,6 +9,10 @@ import { allocate, periodsForMonthKey } from './periods.js';
  * @typedef {{ destination:Destination, amount:number, allocations:Allocation[] }} ActivityInput
  * @typedef {Period & { allocation:number, carryIn:number, transferIn:number, out:number, spent:number, remaining:number, completed:boolean, openFunds:boolean }} PeriodView
  * @typedef {{ available:number, billsReserved:number, paidCount:number, billCount:number, spendingPool:number, safeToSpend:number, hasOpenFunds:boolean, periods:PeriodView[] }} MonthView
+ * @typedef {import('./data-activities.js').Activity} Activity
+ * @typedef {import('./data-envelopes.js').Envelope} Envelope
+ * @typedef {Envelope & { balance:number }} EnvelopeView
+ * @typedef {{ activityId:string, direction:'in'|'out', amount:number, counterparty:Source[]|Destination, monthKey:string, periodIndex:number, description:string }} HistoryRow
  */
 
 /**
@@ -93,4 +97,54 @@ export function computeMonth({ monthKey, available, bills, activities, todayKey 
     hasOpenFunds,
     periods: periodViews,
   };
+}
+
+/**
+ * Derives every envelope's balance from all activities: +amount when the envelope is the
+ * destination, -allocation for each allocation sourced from the envelope. Balances may be negative.
+ * @param {Envelope[]} envelopes @param {Activity[]} allActivities @returns {EnvelopeView[]}
+ */
+export function computeEnvelopes(envelopes, allActivities) {
+  /** @type {Map<string, number>} */
+  const balance = new Map(envelopes.map((e) => [e.id, 0]));
+  for (const a of allActivities) {
+    if (a.destination.type === 'envelope') {
+      balance.set(a.destination.envelopeId, (balance.get(a.destination.envelopeId) ?? 0) + a.amount);
+    }
+    for (const alloc of a.allocations) {
+      if (alloc.source.type === 'envelope') {
+        balance.set(alloc.source.envelopeId, (balance.get(alloc.source.envelopeId) ?? 0) - alloc.amount);
+      }
+    }
+  }
+  return envelopes.map((e) => ({ ...e, balance: balance.get(e.id) ?? 0 }));
+}
+
+/**
+ * Derives one envelope's transaction history. An 'in' row's counterparty is the activity's
+ * sources; an 'out' row's counterparty is the activity's destination. Ordered by activity id.
+ * @param {string} envelopeId @param {Activity[]} allActivities @returns {HistoryRow[]}
+ */
+export function computeEnvelopeHistory(envelopeId, allActivities) {
+  /** @type {HistoryRow[]} */
+  const rows = [];
+  for (const a of allActivities) {
+    if (a.destination.type === 'envelope' && a.destination.envelopeId === envelopeId) {
+      rows.push({
+        activityId: a.id, direction: 'in', amount: a.amount,
+        counterparty: a.allocations.map((al) => al.source),
+        monthKey: a.monthKey, periodIndex: a.periodIndex, description: a.description,
+      });
+    }
+    for (const alloc of a.allocations) {
+      if (alloc.source.type === 'envelope' && alloc.source.envelopeId === envelopeId) {
+        rows.push({
+          activityId: a.id, direction: 'out', amount: alloc.amount,
+          counterparty: a.destination,
+          monthKey: a.monthKey, periodIndex: a.periodIndex, description: a.description,
+        });
+      }
+    }
+  }
+  return rows.sort((x, y) => x.activityId.localeCompare(y.activityId));
 }

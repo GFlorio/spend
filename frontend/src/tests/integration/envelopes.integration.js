@@ -1,5 +1,6 @@
 import './setup.js';
 import { beforeEach, describe, expect, test } from 'vitest';
+import { Activities } from '../../data-activities.js';
 import * as db from '../../db.js';
 import { Envelopes } from '../../data-envelopes.js';
 
@@ -23,5 +24,22 @@ describe('Envelopes', () => {
     const renamed = await Envelopes.rename(e.id, 'Emergency');
     expect(renamed.id).toBe(e.id);
     expect((await Envelopes.get(e.id))?.name).toBe('Emergency');
+  });
+});
+
+describe('Envelopes — derived balances', () => {
+  test('fund from a period then spend, balance reconciles', async () => {
+    const travel = await Envelopes.create({ name: 'Travel' });
+    await Activities.create({
+      monthKey: '2026-07', periodIndex: 2, destination: { type: 'envelope', envelopeId: travel.id }, amount: 10000,
+      allocations: [{ source: { type: 'period', periodIndex: 2 }, amount: 10000 }],
+    });
+    await Activities.create({
+      monthKey: '2026-07', periodIndex: 2, destination: { type: 'spent' }, amount: 3000,
+      allocations: [{ source: { type: 'envelope', envelopeId: travel.id }, amount: 3000 }],
+    });
+    const balances = await Envelopes.withBalances();
+    expect(balances.find((e) => e.id === travel.id)?.balance).toBe(7000);
+    expect((await Envelopes.history(travel.id)).map((r) => r.direction)).toEqual(['in', 'out']);
   });
 });

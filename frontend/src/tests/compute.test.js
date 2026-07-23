@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { computeMonth } from '../compute.js';
+import { computeEnvelopeHistory, computeEnvelopes, computeMonth } from '../compute.js';
 
 const base = { monthKey: '2026-07', available: 300000, bills: [], activities: [] };
 /** @param {number} periodIndex @param {number} amount @returns {import('../compute.js').ActivityInput} */
@@ -114,5 +114,57 @@ describe('computeMonth — determinism', () => {
   test('idempotent for identical inputs', () => {
     const input = { ...base, activities: [expense(1, 4200)] };
     expect(computeMonth(input)).toEqual(computeMonth(input));
+  });
+});
+
+/** @param {string} id @param {string} name @returns {import('../data-envelopes.js').Envelope} */
+const env = (id, name) => ({ id, name, createdAt: 0, updatedAt: 0 });
+/**
+ * minimal activity records for envelope math
+ * @param {string} envelopeId @param {number} amount @returns {import('../data-activities.js').Activity}
+ */
+const fundFromPeriod = (envelopeId, amount) => ({
+  id: 'act:1', monthKey: '2026-07', periodIndex: 2, description: 'fund', createdAt: 0, updatedAt: 0,
+  destination: { type: 'envelope', envelopeId }, amount,
+  allocations: [{ source: { type: 'period', periodIndex: 2 }, amount }],
+});
+/** @param {string} envelopeId @param {number} amount @returns {import('../data-activities.js').Activity} */
+const spendFromEnvelope = (envelopeId, amount) => ({
+  id: 'act:2', monthKey: '2026-07', periodIndex: 2, description: 'buy', createdAt: 0, updatedAt: 0,
+  destination: { type: 'spent' }, amount,
+  allocations: [{ source: { type: 'envelope', envelopeId }, amount }],
+});
+
+describe('computeEnvelopes', () => {
+  test('funding increases and spending decreases the balance', () => {
+    const balances = computeEnvelopes([env('env:t', 'Travel')], [fundFromPeriod('env:t', 10000), spendFromEnvelope('env:t', 3000)]);
+    expect(balances[0].balance).toBe(7000);
+  });
+
+  test('balance may go negative', () => {
+    const balances = computeEnvelopes([env('env:t', 'Travel')], [spendFromEnvelope('env:t', 5000)]);
+    expect(balances[0].balance).toBe(-5000);
+  });
+
+  test('envelope-to-envelope transfer conserves total', () => {
+    /** @type {import('../data-activities.js').Activity} */
+    const transfer = {
+      id: 'act:3', monthKey: '2026-07', periodIndex: 0, description: '', createdAt: 0, updatedAt: 0,
+      destination: { type: 'envelope', envelopeId: 'env:a' }, amount: 4000,
+      allocations: [{ source: { type: 'envelope', envelopeId: 'env:b' }, amount: 4000 }],
+    };
+    const balances = computeEnvelopes([env('env:a', 'A'), env('env:b', 'B')], [transfer]);
+    expect(balances.find((e) => e.id === 'env:a')?.balance).toBe(4000);
+    expect(balances.find((e) => e.id === 'env:b')?.balance).toBe(-4000);
+  });
+});
+
+describe('computeEnvelopeHistory', () => {
+  test('produces in/out rows that reconcile to the balance', () => {
+    const acts = [fundFromPeriod('env:t', 10000), spendFromEnvelope('env:t', 3000)];
+    const rows = computeEnvelopeHistory('env:t', acts);
+    expect(rows.map((r) => r.direction)).toEqual(['in', 'out']);
+    const net = rows.reduce((s, r) => s + (r.direction === 'in' ? r.amount : -r.amount), 0);
+    expect(net).toBe(7000);
   });
 });

@@ -1,3 +1,4 @@
+import { computeEnvelopeHistory, computeEnvelopes } from './compute.js';
 import * as db from './db.js';
 import { now, randomUUID } from './utils.js';
 
@@ -33,5 +34,17 @@ export const Envelopes = {
     const next = { ...envelope, name, updatedAt: now() };
     await db.put('envelopes', next);
     return next;
+  },
+
+  /** @returns {Promise<import('./compute.js').EnvelopeView[]>} */
+  async withBalances() {
+    const [envelopes, activities] = await Promise.all([Envelopes.list(), db.getAll('activities')]);
+    return computeEnvelopes(envelopes, activities);
+  },
+
+  /** @param {string} id @returns {Promise<import('./compute.js').HistoryRow[]>} */
+  async history(id) {
+    const activities = await db.getAll('activities');
+    return computeEnvelopeHistory(id, activities);
   },
 };
