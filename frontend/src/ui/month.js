@@ -2,9 +2,12 @@ import { computeMonth } from '../compute.js';
 import { Activities, Bills, Months } from '../data.js';
 import { formatMoney, parseMoney } from '../money.js';
 import * as $ from '../utils.js';
+import { openActivityCreate, openActivityEdit, setupActivity } from './activity.js';
 
 /** @type {string|null} */
 let selectedMonthKey = null;
+/** @type {import('../compute.js').MonthView|null} */
+let lastView = null;
 
 export const getSelectedMonthKey = () => selectedMonthKey;
 
@@ -38,6 +41,7 @@ export function monthLabel(monthKey) {
 export async function renderMonth(monthKey) {
   selectedMonthKey = monthKey;
   const { view, bills } = await buildView(monthKey);
+  lastView = view;
   $.html($.id('monthTitle')).textContent = monthLabel(monthKey);
   renderStatus(view, bills);
   await renderPeriods(view);
@@ -227,9 +231,14 @@ async function renderPeriods(view) {
       const list = document.createElement('div');
       list.className = 'expense-list';
       for (const a of periodActivities) {
-        const item = document.createElement('div');
-        item.className = 'secondary';
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'btn ghost expense-item';
         item.textContent = `${formatMoney(a.amount)} ${a.description}`.trim();
+        item.addEventListener('click', () => {
+          const view = lastView;
+          if (view) { void openActivityEdit({ monthKey: /** @type {string} */ (selectedMonthKey), view, activity: a }); }
+        });
         list.append(item);
       }
       card.append(list);
@@ -238,15 +247,11 @@ async function renderPeriods(view) {
   }
 }
 
-/** Opens the activity dialog for a source period. @param {number} periodIndex */
+/** Opens the universal form for a new expense from a source period. @param {number} periodIndex */
 function openActivity(periodIndex) {
-  const dlg = $.dialog($.id('activityDialog'));
-  dlg.dataset.periodIndex = String(periodIndex);
-  $.input($.id('activityAmount')).value = '';
-  $.input($.id('activityDescription')).value = '';
-  $.html($.id('activitySource')).textContent = `From period ${periodIndex + 1}`;
-  dlg.showModal();
-  $.input($.id('activityAmount')).focus();
+  const view = lastView;
+  if (!view) { return; }
+  void openActivityCreate({ monthKey: /** @type {string} */ (selectedMonthKey), periodIndex, view });
 }
 
 /** Next month key after the latest existing month, else the current month. */
@@ -337,26 +342,7 @@ export function setupMonth() {
     })();
   });
 
-  // Activity dialog submit / cancel.
-  const activityDlg = $.dialog($.id('activityDialog'));
-  $.button($.id('activityClose')).addEventListener('click', () => activityDlg.close());
-  activityDlg.addEventListener('click', (e) => { if (e.target === activityDlg) { activityDlg.close(); } });
-  $.form($.id('activityForm')).addEventListener('submit', (e) => {
-    e.preventDefault();
-    void (async () => {
-      const amount = parseMoney($.input($.id('activityAmount')).value);
-      if (amount === null || amount <= 0) { return; } // zero/blank cannot be saved
-      const periodIndex = Number(activityDlg.dataset.periodIndex);
-      await Activities.createExpense({
-        monthKey: /** @type {string} */ (selectedMonthKey),
-        periodIndex,
-        amount,
-        description: $.input($.id('activityDescription')).value.trim(),
-      });
-      activityDlg.close();
-      await renderMonth(/** @type {string} */ (selectedMonthKey));
-    })();
-  });
+  setupActivity(async () => { await refresh(); });
 }
 
 /** Pick the initial month: current if it exists, else latest, else prompt setup. */
