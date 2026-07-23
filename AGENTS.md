@@ -40,6 +40,9 @@ mise run e2e-file tests-e2e/foo.spec.js        # single E2E test file
 mise run test          # Unit + E2E sequentially
 ```
 
+When calling skills or any commands, prefer a direct syntax (avoiding e.g. variable substitution)
+to avoid shell injection or permission issues.
+
 ## Testing
 
 E2E is slow. Push coverage **down the pyramid** and keep Playwright thin. Write the

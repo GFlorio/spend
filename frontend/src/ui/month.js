@@ -2,9 +2,53 @@ import { computeMonth } from '../compute.js';
 import { Activities, Bills, Months } from '../data.js';
 import { formatMoney, parseMoney } from '../money.js';
 import * as $ from '../utils.js';
+import { openActivityCreate, openActivityEdit, setupActivity } from './activity.js';
+
+/**
+ * Opens the scope chooser and resolves to the selected scope, or null if dismissed.
+ * @param {string} title
+ * @returns {Promise<'thisMonth'|'forward'|null>}
+ */
+function chooseScope(title) {
+  return new Promise((resolve) => {
+    const dlg = $.dialog($.id('billScopeDialog'));
+    $.html($.id('billScopeTitle')).textContent = title;
+    /** @param {'thisMonth'|'forward'|null} value */
+    const done = (value) => { dlg.close(); resolve(value); };
+    const thisBtn = $.button($.id('billScopeThis'));
+    const fwdBtn = $.button($.id('billScopeForward'));
+    const closeBtn = $.button($.id('billScopeClose'));
+    const onThis = () => finish('thisMonth');
+    const onFwd = () => finish('forward');
+    const onClose = () => finish(null);
+    const onCancel = () => finish(null);
+    let settled = false;
+    /** @param {'thisMonth'|'forward'|null} value */
+    function finish(value) {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      thisBtn.removeEventListener('click', onThis);
+      fwdBtn.removeEventListener('click', onFwd);
+      closeBtn.removeEventListener('click', onClose);
+      dlg.removeEventListener('cancel', onCancel);
+      done(value);
+    }
+    thisBtn.addEventListener('click', onThis);
+    fwdBtn.addEventListener('click', onFwd);
+    closeBtn.addEventListener('click', onClose);
+    dlg.addEventListener('cancel', onCancel);
+    dlg.showModal();
+  });
+}
 
 /** @type {string|null} */
 let selectedMonthKey = null;
+/** @type {import('../compute.js').MonthView|null} */
+let lastView = null;
+/** @type {Set<number>} indices of expanded period cards */
+const expandedPeriods = new Set();
 
 export const getSelectedMonthKey = () => selectedMonthKey;
 
@@ -21,7 +65,8 @@ async function buildView(monthKey) {
       monthKey,
       available: month.available,
       bills: bills.map((b) => ({ paid: b.paid, actual: b.actual, expected: b.expected })),
-      activities: activities.map((a) => ({ periodIndex: a.periodIndex, amount: a.amount, destination: a.destination })),
+      activities,
+      todayKey: $.isoToday(),
     }),
   };
 }
@@ -37,6 +82,7 @@ export function monthLabel(monthKey) {
 export async function renderMonth(monthKey) {
   selectedMonthKey = monthKey;
   const { view, bills } = await buildView(monthKey);
+  lastView = view;
   $.html($.id('monthTitle')).textContent = monthLabel(monthKey);
   renderStatus(view, bills);
   await renderPeriods(view);
@@ -126,15 +172,35 @@ function renderBillList(bills) {
     amount.textContent = shown !== bill.expected ? `${formatMoney(shown)} (exp ${formatMoney(bill.expected)})` : formatMoney(shown);
     amount.addEventListener('click', () => {
       void (async () => {
-        const entered = parseMoney(prompt('Actual amount', (shown / 100).toFixed(2)) ?? '');
-        if (entered !== null && entered >= 0) {
-          await Bills.setActual(bill.id, entered);
-          await refresh();
+        if (bill.paid) {
+          const entered = parseMoney(prompt('Actual amount', ((bill.actual ?? bill.expected) / 100).toFixed(2)) ?? '');
+          if (entered !== null && entered >= 0) { await Bills.setActual(bill.id, entered); await refresh(); }
+          return;
         }
+        const entered = parseMoney(prompt('Expected amount', (bill.expected / 100).toFixed(2)) ?? '');
+        if (entered === null || entered < 0) { return; }
+        const scope = await chooseScope('Change expected amount');
+        if (!scope) { return; }
+        await Bills.setExpected(bill.id, entered, scope);
+        await refresh();
       })();
     });
 
-    row.append(pay, name, amount);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn ghost small bill-remove';
+    remove.textContent = '🗑';
+    remove.setAttribute('aria-label', `Remove ${bill.name}`);
+    remove.addEventListener('click', () => {
+      void (async () => {
+        if (bill.paid && !confirm(`${bill.name} is paid. Remove it anyway?`)) { return; }
+        const scope = await chooseScope('Remove bill');
+        if (!scope) { return; }
+        await Bills.remove(bill.id, scope);
+        await refresh();
+      })();
+    });
+    row.append(pay, name, amount, remove);
     wrap.append(row);
   }
 
@@ -221,14 +287,70 @@ async function renderPeriods(view) {
 
     card.append(range, remaining, secondary, add);
 
+    if (p.openFunds) {
+      const flag = document.createElement('div');
+      flag.className = 'open-funds';
+      flag.textContent = `Open funds: ${formatMoney(p.remaining)}`;
+      card.append(flag);
+
+      const move = document.createElement('button');
+      move.type = 'button';
+      move.className = 'btn small move-leftover';
+      move.textContent = 'Move leftover';
+      move.addEventListener('click', () => {
+        const view = lastView;
+        if (!view) { return; }
+        const nextIndex = p.index + 1 < view.periods.length ? p.index + 1 : p.index;
+        // Next period when one exists; for the final period the preset equals the source
+        // period, which flags a conflict so the user must pick an envelope (§11.4).
+        /** @type {import('../data.js').Destination} */
+        const destination = { type: 'period', periodIndex: nextIndex };
+        void openActivityCreate({
+          monthKey: /** @type {string} */ (selectedMonthKey),
+          periodIndex: p.index,
+          preset: { destination, amount: p.remaining },
+        });
+      });
+      card.append(move);
+    }
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'btn ghost small';
+    toggle.textContent = expandedPeriods.has(p.index) ? 'Hide details' : 'Details';
+    toggle.addEventListener('click', () => {
+      if (expandedPeriods.has(p.index)) { expandedPeriods.delete(p.index); } else { expandedPeriods.add(p.index); }
+      void refresh();
+    });
+    card.append(toggle);
+
+    if (expandedPeriods.has(p.index)) {
+      const breakdown = document.createElement('div');
+      breakdown.className = 'breakdown secondary';
+      const rows = [
+        `Base ${formatMoney(p.allocation)}`,
+        p.carryIn ? `Carried deficit ${formatMoney(p.carryIn)}` : '',
+        p.transferIn ? `Transfers in ${formatMoney(p.transferIn)}` : '',
+        p.out ? `Out ${formatMoney(-p.out)}` : '',
+        p.wholeMonthDebit ? `Whole-month funding ${formatMoney(-p.wholeMonthDebit)}` : '',
+        `Remaining ${formatMoney(p.remaining)}`,
+      ].filter(Boolean);
+      breakdown.innerHTML = rows.map((r) => `<div>${r}</div>`).join('');
+      card.append(breakdown);
+    }
+
     const periodActivities = activities.filter((a) => a.periodIndex === p.index);
     if (periodActivities.length) {
       const list = document.createElement('div');
       list.className = 'expense-list';
       for (const a of periodActivities) {
-        const item = document.createElement('div');
-        item.className = 'secondary';
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'btn ghost expense-item';
         item.textContent = `${formatMoney(a.amount)} ${a.description}`.trim();
+        item.addEventListener('click', () => {
+          if (lastView) { void openActivityEdit({ monthKey: /** @type {string} */ (selectedMonthKey), activity: a }); }
+        });
         list.append(item);
       }
       card.append(list);
@@ -237,15 +359,10 @@ async function renderPeriods(view) {
   }
 }
 
-/** Opens the activity dialog for a source period. @param {number} periodIndex */
+/** Opens the universal form for a new expense from a source period. @param {number} periodIndex */
 function openActivity(periodIndex) {
-  const dlg = $.dialog($.id('activityDialog'));
-  dlg.dataset.periodIndex = String(periodIndex);
-  $.input($.id('activityAmount')).value = '';
-  $.input($.id('activityDescription')).value = '';
-  $.html($.id('activitySource')).textContent = `From period ${periodIndex + 1}`;
-  dlg.showModal();
-  $.input($.id('activityAmount')).focus();
+  if (!lastView) { return; }
+  void openActivityCreate({ monthKey: /** @type {string} */ (selectedMonthKey), periodIndex });
 }
 
 /** Next month key after the latest existing month, else the current month. */
@@ -336,26 +453,7 @@ export function setupMonth() {
     })();
   });
 
-  // Activity dialog submit / cancel.
-  const activityDlg = $.dialog($.id('activityDialog'));
-  $.button($.id('activityClose')).addEventListener('click', () => activityDlg.close());
-  activityDlg.addEventListener('click', (e) => { if (e.target === activityDlg) { activityDlg.close(); } });
-  $.form($.id('activityForm')).addEventListener('submit', (e) => {
-    e.preventDefault();
-    void (async () => {
-      const amount = parseMoney($.input($.id('activityAmount')).value);
-      if (amount === null || amount <= 0) { return; } // zero/blank cannot be saved
-      const periodIndex = Number(activityDlg.dataset.periodIndex);
-      await Activities.createExpense({
-        monthKey: /** @type {string} */ (selectedMonthKey),
-        periodIndex,
-        amount,
-        description: $.input($.id('activityDescription')).value.trim(),
-      });
-      activityDlg.close();
-      await renderMonth(/** @type {string} */ (selectedMonthKey));
-    })();
-  });
+  setupActivity(async () => { await refresh(); });
 }
 
 /** Pick the initial month: current if it exists, else latest, else prompt setup. */

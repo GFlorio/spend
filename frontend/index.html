@@ -19,7 +19,18 @@
       <section id="periods" class="periods"></section>
     </section>
     <section id="page-envelopes" class="page hidden">
-      <p class="empty">Envelopes arrive in a later update.</p>
+      <div id="envelopeOverview">
+        <h2 class="screen-title">Envelopes</h2>
+        <ul id="envelopeList" class="envelope-list"></ul>
+        <p id="envelopeEmpty" class="empty hidden">No envelopes yet. Fund one from a period's + Add.</p>
+      </div>
+      <div id="envelopeDetail" class="hidden">
+        <button type="button" class="btn ghost small" id="envelopeBack">← All envelopes</button>
+        <!-- biome-ignore lint/a11y/useHeadingContent: text is set by envelopes.js at render time -->
+        <h2 id="envelopeDetailName" class="screen-title"></h2>
+        <div id="envelopeDetailBalance" class="hero"></div>
+        <ul id="envelopeHistory" class="history-list"></ul>
+      </div>
     </section>
   </main>
 
@@ -77,9 +88,26 @@
         <input type="text" inputmode="decimal" id="activityAmount" required autocomplete="off"></label>
       <label class="field"><span>Description (optional)</span>
         <input type="text" id="activityDescription" autocomplete="off"></label>
-      <p class="activity-source" id="activitySource"></p>
-      <button type="submit" class="btn primary">Save</button>
+      <label class="field"><span>To</span>
+        <select id="activityDestination"></select></label>
+      <div class="sources-head"><span>From</span>
+        <button type="button" class="btn ghost small" id="activityAddSource">+ Add source</button></div>
+      <div id="activitySources" class="sources"></div>
+      <div id="activityBar" class="alloc-bar" aria-hidden="true"></div>
+      <p id="activityProjection" class="activity-projection"></p>
+      <p id="activityError" class="activity-error" role="alert"></p>
+      <button type="button" class="btn destructive hidden" id="activityDelete">Delete</button>
+      <button type="submit" class="btn primary" id="activitySave">Save</button>
     </form>
+  </dialog>
+
+  <dialog id="billScopeDialog" aria-label="Apply to which months">
+    <div class="sheet-inner">
+      <div class="sheet-header"><span id="billScopeTitle">Apply change</span>
+        <button type="button" class="btn ghost" id="billScopeClose" aria-label="Close">✕</button></div>
+      <button type="button" class="btn" id="billScopeThis">This month only</button>
+      <button type="button" class="btn" id="billScopeForward">This and following months</button>
+    </div>
   </dialog>
 </div>
 <script type="module" src="/src/main.js"></script>

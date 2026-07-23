@@ -42,3 +42,42 @@ describe('Bills', () => {
     expect((await Bills.listForMonth('2026-07')).map((b) => b.name)).toEqual(['A', 'B']);
   });
 });
+
+describe('Bills — scoped expected change and removal', () => {
+  test('setExpected "thisMonth" changes only the selected month', async () => {
+    const { occ, series } = await Bills.create({ monthKey: '2026-07', name: 'Power', expected: 8000 });
+    // create an August occurrence of the same series
+    await db.put('billOccurrences', { id: 'occ:aug', seriesId: series.id, monthKey: '2026-08', expected: 8000, paid: false, actual: null, paidDate: null, createdAt: 1, updatedAt: 1 });
+    await Bills.setExpected(occ.id, 9000, 'thisMonth');
+    expect((await Bills.listForMonth('2026-07'))[0].expected).toBe(9000);
+    expect((await Bills.listForMonth('2026-08'))[0].expected).toBe(8000);
+  });
+
+  test('setExpected "forward" changes this and later months, never earlier', async () => {
+    const june = await Bills.create({ monthKey: '2026-06', name: 'Power', expected: 8000 });
+    const seriesId = june.series.id;
+    await db.put('billOccurrences', { id: 'occ:jul', seriesId, monthKey: '2026-07', expected: 8000, paid: false, actual: null, paidDate: null, createdAt: 2, updatedAt: 2 });
+    await db.put('billOccurrences', { id: 'occ:aug', seriesId, monthKey: '2026-08', expected: 8000, paid: false, actual: null, paidDate: null, createdAt: 3, updatedAt: 3 });
+    await Bills.setExpected('occ:jul', 9500, 'forward');
+    expect((await Bills.listForMonth('2026-06'))[0].expected).toBe(8000); // earlier untouched
+    expect((await Bills.listForMonth('2026-07'))[0].expected).toBe(9500);
+    expect((await Bills.listForMonth('2026-08'))[0].expected).toBe(9500);
+  });
+
+  test('remove "thisMonth" deletes only the selected occurrence', async () => {
+    const { occ, series } = await Bills.create({ monthKey: '2026-07', name: 'Power', expected: 8000 });
+    await db.put('billOccurrences', { id: 'occ:aug', seriesId: series.id, monthKey: '2026-08', expected: 8000, paid: false, actual: null, paidDate: null, createdAt: 4, updatedAt: 4 });
+    await Bills.remove(occ.id, 'thisMonth');
+    expect(await Bills.listForMonth('2026-07')).toHaveLength(0);
+    expect(await Bills.listForMonth('2026-08')).toHaveLength(1);
+  });
+
+  test('remove "forward" deletes this and later occurrences', async () => {
+    const june = await Bills.create({ monthKey: '2026-06', name: 'Power', expected: 8000 });
+    const seriesId = june.series.id;
+    await db.put('billOccurrences', { id: 'occ:jul', seriesId, monthKey: '2026-07', expected: 8000, paid: false, actual: null, paidDate: null, createdAt: 5, updatedAt: 5 });
+    await Bills.remove('occ:jul', 'forward');
+    expect(await Bills.listForMonth('2026-06')).toHaveLength(1);
+    expect(await Bills.listForMonth('2026-07')).toHaveLength(0);
+  });
+});

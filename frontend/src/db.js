@@ -3,10 +3,11 @@
  */
 
 const DB_NAME = 'spend';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 /** store name -> index definitions [indexName, keyPath] */
 const STORES = {
+  envelopes: [],
   months: [],
   billSeries: [],
   billOccurrences: [['by_month', 'monthKey'], ['by_series', 'seriesId']],
@@ -22,8 +23,10 @@ function openDB() {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const database = req.result;
+      for (const name of Array.from(database.objectStoreNames)) {
+        database.deleteObjectStore(name);
+      }
       for (const [name, indexes] of Object.entries(STORES)) {
-        if (database.objectStoreNames.contains(name)) { continue; }
         const store = database.createObjectStore(name, { keyPath: 'id' });
         for (const [indexName, keyPath] of indexes) { store.createIndex(indexName, keyPath); }
       }
@@ -114,13 +117,13 @@ export async function resetDB() {
 
 /**
  * Serialises every store. Import is added in Slice 3.
- * @returns {Promise<{version:number, exportedAt:string, months:any[], billSeries:any[], billOccurrences:any[], activities:any[]}>}
+ * @returns {Promise<{version:number, exportedAt:string, envelopes:any[], months:any[], billSeries:any[], billOccurrences:any[], activities:any[]}>}
  */
 export async function exportDB() {
-  const [months, billSeries, billOccurrences, activities] = await Promise.all([
-    getAll('months'), getAll('billSeries'), getAll('billOccurrences'), getAll('activities'),
+  const [envelopes, months, billSeries, billOccurrences, activities] = await Promise.all([
+    getAll('envelopes'), getAll('months'), getAll('billSeries'), getAll('billOccurrences'), getAll('activities'),
   ]);
-  return { version: 1, exportedAt: new Date().toISOString(), months, billSeries, billOccurrences, activities };
+  return { version: 2, exportedAt: new Date().toISOString(), envelopes, months, billSeries, billOccurrences, activities };
 }
 
 // Test seam for E2E: seed IndexedDB without the UI.
