@@ -26,4 +26,8 @@ describe('validateDump (DAT-5)', () => {
     const act = { id: 'act:1', monthKey: '2026-02', periodIndex: 9 }; // Feb 2026 has 4 periods
     expect(() => validateDump({ ...good, activities: [act] })).toThrow(/out of range/i);
   });
+  test('rejects an activity with a malformed monthKey', () => {
+    const act = { id: 'act:1', monthKey: '2026-99', periodIndex: 0 };
+    expect(() => validateDump({ ...good, activities: [act] })).toThrow(/monthKey/i);
+  });
 });

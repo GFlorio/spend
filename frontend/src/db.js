@@ -35,7 +35,9 @@ export function validateDump(dump) {
     }
   }
   for (const act of dump.activities) {
-    if (typeof act.monthKey !== 'string') { throw new Error(`Import: activity ${act.id} is missing monthKey`); }
+    if (typeof act.monthKey !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(act.monthKey)) {
+      throw new Error(`Import: activity ${act.id} has an invalid monthKey ${act.monthKey}`);
+    }
     const n = periodsForMonthKey(act.monthKey).length;
     const indices = [act.periodIndex];
     if (act.destination?.type === 'period') { indices.push(act.destination.periodIndex); }
