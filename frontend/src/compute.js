@@ -123,12 +123,15 @@ export function computeEnvelopes(envelopes, allActivities) {
   /** @type {Map<string, number>} */
   const balance = new Map(envelopes.map((e) => [e.id, 0]));
   for (const a of allActivities) {
-    if (a.destination.type === 'envelope') {
-      balance.set(a.destination.envelopeId, (balance.get(a.destination.envelopeId) ?? 0) + a.amount);
+    const dest = a.destination;
+    if (dest.type === 'envelope') {
+      const cur = balance.get(dest.envelopeId);
+      if (cur !== undefined) { balance.set(dest.envelopeId, cur + a.amount); }
     }
     for (const alloc of a.allocations) {
       if (alloc.source.type === 'envelope') {
-        balance.set(alloc.source.envelopeId, (balance.get(alloc.source.envelopeId) ?? 0) - alloc.amount);
+        const cur = balance.get(alloc.source.envelopeId);
+        if (cur !== undefined) { balance.set(alloc.source.envelopeId, cur - alloc.amount); }
       }
     }
   }

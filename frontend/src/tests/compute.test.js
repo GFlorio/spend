@@ -197,3 +197,44 @@ describe('computeMonth — periodIndex bounds (Slice 1 deferral)', () => {
     })).toThrow(/out of range/);
   });
 });
+
+describe('computeEnvelopes / history — carried cases', () => {
+  /** @param {string} id @param {string} name @returns {import('../data-envelopes.js').Envelope} */
+  const env = (id, name) => ({ id, name, createdAt: 1, updatedAt: 1 });
+  /** @param {Partial<import('../data-activities.js').Activity>} over @returns {import('../data-activities.js').Activity} */
+  const act = (over) => ({
+    id: 'act:1', monthKey: '2026-07', periodIndex: 0, description: '',
+    amount: 0, destination: { type: 'spent' }, allocations: [], createdAt: 1, updatedAt: 1, ...over,
+  });
+
+  test('an activity referencing an unlisted envelope id does not affect listed balances', () => {
+    const acts = [act({
+      amount: 500, destination: { type: 'envelope', envelopeId: 'env:ghost' },
+      allocations: [{ source: { type: 'period', periodIndex: 0 }, amount: 500 }],
+    })];
+    const [v] = computeEnvelopes([env('env:1', 'A')], acts);
+    expect(v.balance).toBe(0);
+  });
+
+  test('an in-row counterparty lists every source of the funding activity', () => {
+    const acts = [act({
+      amount: 300, destination: { type: 'envelope', envelopeId: 'env:1' },
+      allocations: [
+        { source: { type: 'period', periodIndex: 0 }, amount: 200 },
+        { source: { type: 'outside' }, amount: 100 },
+      ],
+    })];
+    const rows = computeEnvelopeHistory('env:1', acts);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].direction).toBe('in');
+    expect(rows[0].counterparty).toEqual([{ type: 'period', periodIndex: 0 }, { type: 'outside' }]);
+  });
+
+  test('billCount counts all bills regardless of paid state', () => {
+    const view = computeMonth({
+      ...base,
+      bills: [{ paid: true, actual: 100, expected: 100 }, { paid: false, actual: null, expected: 200 }],
+    });
+    expect(view.billCount).toBe(2);
+  });
+});
