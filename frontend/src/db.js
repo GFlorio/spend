@@ -2,6 +2,8 @@
  * Single storage boundary over raw IndexedDB.
  */
 
+import { periodsForMonthKey } from './periods.js';
+
 const DB_NAME = 'spend';
 const DB_VERSION = 2;
 
@@ -13,6 +15,40 @@ const STORES = {
   billOccurrences: [['by_month', 'monthKey'], ['by_series', 'seriesId']],
   activities: [['by_month', 'monthKey']],
 };
+
+const STORE_KEYS = Object.keys(STORES);
+
+/**
+ * Validates an exported dump before any write. Throws on the first problem; returns void
+ * when the dump is safe to import. Pure — no IndexedDB access.
+ * @param {any} dump
+ */
+export function validateDump(dump) {
+  if (!dump || typeof dump !== 'object') { throw new Error('Import: dump is not an object'); }
+  if (dump.version !== DB_VERSION) {
+    throw new Error(`Import: unsupported version ${dump.version} (expected ${DB_VERSION})`);
+  }
+  for (const key of STORE_KEYS) {
+    if (!Array.isArray(dump[key])) { throw new Error(`Import: "${key}" must be an array`); }
+    for (const rec of dump[key]) {
+      if (!rec || typeof rec.id !== 'string') { throw new Error(`Import: a "${key}" record is missing a string id`); }
+    }
+  }
+  for (const act of dump.activities) {
+    if (typeof act.monthKey !== 'string') { throw new Error(`Import: activity ${act.id} is missing monthKey`); }
+    const n = periodsForMonthKey(act.monthKey).length;
+    const indices = [act.periodIndex];
+    if (act.destination?.type === 'period') { indices.push(act.destination.periodIndex); }
+    for (const alloc of act.allocations ?? []) {
+      if (alloc?.source?.type === 'period') { indices.push(alloc.source.periodIndex); }
+    }
+    for (const idx of indices) {
+      if (!Number.isInteger(idx) || idx < 0 || idx >= n) {
+        throw new Error(`Import: activity ${act.id} periodIndex ${idx} out of range for ${act.monthKey}`);
+      }
+    }
+  }
+}
 
 /** @type {Promise<IDBDatabase>|null} */
 let dbPromise = null;
