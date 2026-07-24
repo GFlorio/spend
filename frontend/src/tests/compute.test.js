@@ -168,3 +168,18 @@ describe('computeEnvelopeHistory', () => {
     expect(net).toBe(7000);
   });
 });
+
+describe('computeMonth — periodIndex bounds (Slice 1 deferral)', () => {
+  test('throws on an out-of-range source periodIndex', () => {
+    expect(() => computeMonth({ ...base, activities: [expense(99, 100)] })).toThrow(/out of range/);
+  });
+  test('throws on an out-of-range destination periodIndex', () => {
+    expect(() => computeMonth({
+      ...base,
+      activities: [{
+        destination: { type: 'period', periodIndex: 99 }, amount: 100,
+        allocations: [{ source: { type: 'wholeMonth' }, amount: 100 }],
+      }],
+    })).toThrow(/out of range/);
+  });
+});
