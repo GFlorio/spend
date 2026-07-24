@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import { computeMonth } from '../../compute.js';
 import * as db from '../../db.js';
 import { Activities } from '../../data-activities.js';
+import { addExpense, createMonth } from './helpers.js';
 
 beforeEach(async () => { await db.resetDB(); });
 
@@ -44,6 +45,16 @@ describe('Activities', () => {
     await Activities.remove(a.id);
     expect(await Activities.get(a.id)).toBeUndefined();
     expect(await Activities.listForMonth('2026-07')).toEqual([]);
+  });
+
+  test('listForMonth / listForPeriod filter to the right records', async () => {
+    await createMonth('2026-07', 300000);
+    await addExpense('2026-07', 0, 1000);
+    await addExpense('2026-07', 2, 2000);
+    await addExpense('2026-07', 2, 500);
+    expect(await Activities.listForMonth('2026-07')).toHaveLength(3);
+    expect(await Activities.listForPeriod('2026-07', 2)).toHaveLength(2);
+    expect(await Activities.listForPeriod('2026-07', 0)).toHaveLength(1);
   });
 });
 
