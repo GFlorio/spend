@@ -21,6 +21,9 @@ export function redistributeEqual(total, count) {
  * @returns {number[]}
  */
 export function removeProportional(amounts, indexToRemove, total) {
+  if (!Number.isInteger(indexToRemove) || indexToRemove < 0 || indexToRemove >= amounts.length) {
+    throw new Error(`removeProportional: indexToRemove ${indexToRemove} out of range [0,${amounts.length})`);
+  }
   const kept = amounts.filter((_, i) => i !== indexToRemove);
   if (kept.length === 0) { throw new Error('removeProportional: cannot remove the last source'); }
   const keptTotal = kept.reduce((sum, a) => sum + a, 0);

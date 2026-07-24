@@ -27,3 +27,15 @@ describe('removeProportional', () => {
     expect(removeProportional([0, 0, 5000], 2, 6000)).toEqual([3000, 3000]);
   });
 });
+
+describe('removeProportional — index guard + residual (Slice 2 deferral)', () => {
+  test('throws on an out-of-range index', () => {
+    expect(() => removeProportional([100, 200], 5, 300)).toThrow(/out of range/);
+  });
+  test('keeps proportions and sums to total', () => {
+    expect(removeProportional([10, 20, 30], 0, 100)).toEqual([40, 60]);
+  });
+  test('assigns the flooring residual to the last kept entry', () => {
+    expect(removeProportional([5, 1, 1, 1], 0, 100)).toEqual([33, 33, 34]);
+  });
+});
