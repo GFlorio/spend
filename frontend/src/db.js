@@ -164,6 +164,28 @@ export async function exportDB() {
   return { version: 2, exportedAt: new Date().toISOString(), envelopes, months, billSeries, billOccurrences, activities };
 }
 
+/**
+ * Validates then replaces the entire dataset in one atomic transaction. Never merges.
+ * @param {any} dump
+ * @returns {Promise<void>}
+ */
+export async function importDB(dump) {
+  validateDump(dump);
+  const database = await openDB();
+  const names = Object.keys(STORES);
+  await new Promise((resolve, reject) => {
+    const tx = database.transaction(names, 'readwrite');
+    tx.oncomplete = () => resolve(undefined);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+    for (const name of names) {
+      const store = tx.objectStore(name);
+      store.clear();
+      for (const rec of dump[name]) { store.put(rec); }
+    }
+  });
+}
+
 // Test seam for E2E: seed IndexedDB without the UI.
 if (typeof window !== 'undefined') {
   /** @type {any} */ (window).__testDB = { reset: resetDB, put, getAll };
