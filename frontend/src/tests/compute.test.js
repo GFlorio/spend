@@ -168,3 +168,73 @@ describe('computeEnvelopeHistory', () => {
     expect(net).toBe(7000);
   });
 });
+
+describe('computeMonth — whole-month-funded expense (Slice 2 deferral)', () => {
+  test('feeds spent[] proportionally and leaves safe-to-spend as the net debit', () => {
+    const view = computeMonth({
+      ...base,
+      activities: [{
+        destination: { type: 'spent' }, amount: 10000,
+        allocations: [{ source: { type: 'wholeMonth' }, amount: 10000 }],
+      }],
+    });
+    expect(view.periods.reduce((s, p) => s + p.spent, 0)).toBe(10000);
+    expect(view.safeToSpend).toBe(300000 - 10000);
+  });
+});
+
+describe('computeMonth — periodIndex bounds (Slice 1 deferral)', () => {
+  test('throws on an out-of-range source periodIndex', () => {
+    expect(() => computeMonth({ ...base, activities: [expense(99, 100)] })).toThrow(/out of range/);
+  });
+  test('throws on an out-of-range destination periodIndex', () => {
+    expect(() => computeMonth({
+      ...base,
+      activities: [{
+        destination: { type: 'period', periodIndex: 99 }, amount: 100,
+        allocations: [{ source: { type: 'wholeMonth' }, amount: 100 }],
+      }],
+    })).toThrow(/out of range/);
+  });
+});
+
+describe('computeEnvelopes / history — carried cases', () => {
+  /** @param {string} id @param {string} name @returns {import('../data-envelopes.js').Envelope} */
+  const env = (id, name) => ({ id, name, createdAt: 1, updatedAt: 1 });
+  /** @param {Partial<import('../data-activities.js').Activity>} over @returns {import('../data-activities.js').Activity} */
+  const act = (over) => ({
+    id: 'act:1', monthKey: '2026-07', periodIndex: 0, description: '',
+    amount: 0, destination: { type: 'spent' }, allocations: [], createdAt: 1, updatedAt: 1, ...over,
+  });
+
+  test('an activity referencing an unlisted envelope id does not affect listed balances', () => {
+    const acts = [act({
+      amount: 500, destination: { type: 'envelope', envelopeId: 'env:ghost' },
+      allocations: [{ source: { type: 'period', periodIndex: 0 }, amount: 500 }],
+    })];
+    const [v] = computeEnvelopes([env('env:1', 'A')], acts);
+    expect(v.balance).toBe(0);
+  });
+
+  test('an in-row counterparty lists every source of the funding activity', () => {
+    const acts = [act({
+      amount: 300, destination: { type: 'envelope', envelopeId: 'env:1' },
+      allocations: [
+        { source: { type: 'period', periodIndex: 0 }, amount: 200 },
+        { source: { type: 'outside' }, amount: 100 },
+      ],
+    })];
+    const rows = computeEnvelopeHistory('env:1', acts);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].direction).toBe('in');
+    expect(rows[0].counterparty).toEqual([{ type: 'period', periodIndex: 0 }, { type: 'outside' }]);
+  });
+
+  test('billCount counts all bills regardless of paid state', () => {
+    const view = computeMonth({
+      ...base,
+      bills: [{ paid: true, actual: 100, expected: 100 }, { paid: false, actual: null, expected: 200 }],
+    });
+    expect(view.billCount).toBe(2);
+  });
+});

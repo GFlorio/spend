@@ -1,7 +1,7 @@
 import './setup.js';
 import { beforeEach, describe, expect, test } from 'vitest';
 import * as db from '../../db.js';
-import { Bills } from '../../data-bills.js';
+import { Bills } from '../../data.js';
 
 beforeEach(async () => { await db.resetDB(); });
 
@@ -79,5 +79,17 @@ describe('Bills — scoped expected change and removal', () => {
     await Bills.remove('occ:jul', 'forward');
     expect(await Bills.listForMonth('2026-06')).toHaveLength(1);
     expect(await Bills.listForMonth('2026-07')).toHaveLength(0);
+  });
+
+  test('setExpected rejects an unknown scope', async () => {
+    const { occ } = await Bills.create({ monthKey: '2026-07', name: 'Rent', expected: 100000 });
+    await expect(Bills.setExpected(occ.id, 90000, /** @type {any} */ ('bogus'))).rejects.toThrow(/scope/i);
+  });
+  test('remove rejects an unknown scope', async () => {
+    const { occ } = await Bills.create({ monthKey: '2026-07', name: 'Rent', expected: 100000 });
+    await expect(Bills.remove(occ.id, /** @type {any} */ ('bogus'))).rejects.toThrow(/scope/i);
+  });
+  test('rename throws for a missing series', async () => {
+    await expect(Bills.rename('series:nope', 'X')).rejects.toThrow(/not found/i);
   });
 });

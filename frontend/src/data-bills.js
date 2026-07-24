@@ -83,6 +83,7 @@ export const Bills = {
    * @returns {Promise<BillOccurrence>}
    */
   async setExpected(occId, expected, scope) {
+    if (scope !== 'thisMonth' && scope !== 'forward') { throw new Error(`Unknown scope ${scope}`); }
     const occ = await loadOccurrence(occId);
     const targets = scope === 'forward'
       ? (await db.getAllByIndex('billOccurrences', 'by_series', occ.seriesId)).filter((o) => o.monthKey >= occ.monthKey)
@@ -99,6 +100,7 @@ export const Bills = {
    * @returns {Promise<void>}
    */
   async remove(occId, scope) {
+    if (scope !== 'thisMonth' && scope !== 'forward') { throw new Error(`Unknown scope ${scope}`); }
     const occ = await loadOccurrence(occId);
     const targets = scope === 'forward'
       ? (await db.getAllByIndex('billOccurrences', 'by_series', occ.seriesId)).filter((o) => o.monthKey >= occ.monthKey)

@@ -70,37 +70,52 @@ dialog::backdrop { background: rgba(0,0,0,0.4); }
 .empty, .config-note { color: var(--muted); }
 
 /* Universal activity form */
-.sources-head { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
-.sources { display: flex; flex-direction: column; gap: 8px; }
-.source-row { display: flex; align-items: center; gap: 8px; }
+.sources-head { display: flex; justify-content: space-between; align-items: center; margin-top: var(--s3); }
+.sources { display: flex; flex-direction: column; gap: var(--s2); }
+.source-row { display: flex; align-items: center; gap: var(--s2); }
 .source-name { flex: 1; }
 .source-amount { width: 8rem; min-height: 44px; }
 .source-remove { min-width: 44px; }
-.alloc-bar { display: flex; height: 10px; border-radius: 10px; overflow: hidden; margin: 12px 0; background: color-mix(in srgb, Canvas 85%, GrayText); }
+.alloc-bar { display: flex; height: 10px; border-radius: 10px; overflow: hidden; margin: var(--s3) 0; background: color-mix(in srgb, Canvas 85%, GrayText); }
 .alloc-seg { height: 100%; }
-.alloc-seg-0 { background: var(--brand, #4f7cff); }
-.alloc-seg-1 { background: var(--positive, #2fa36b); }
-.alloc-seg-2 { background: var(--warning, #c98a00); }
-.alloc-seg-3 { background: color-mix(in srgb, var(--brand, #4f7cff) 60%, GrayText); }
-.activity-projection { font-size: 0.9rem; opacity: 0.85; margin: 4px 0; }
-.activity-error { color: var(--negative, #c0392b); font-size: 0.9rem; min-height: 1.2em; margin: 0; }
+.alloc-seg-0 { background: var(--brand); }
+.alloc-seg-1 { background: var(--positive); }
+.alloc-seg-2 { background: var(--warning); }
+.alloc-seg-3 { background: color-mix(in srgb, var(--brand) 60%, GrayText); }
+.activity-projection { font-size: 0.9rem; opacity: 0.85; margin: var(--s1) 0; }
+.activity-error { color: var(--negative); font-size: 0.9rem; min-height: 1.2em; margin: 0; }
 
 /* Envelopes */
-.screen-title { font-size: 1.25rem; margin: 8px 0 16px; }
-.envelope-list, .history-list, .month-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.screen-title { font-size: 1.25rem; margin: var(--s2) 0 var(--s4); }
+.envelope-list, .history-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--s2); }
 .envelope-row { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 48px; }
-.envelope-balance.negative { color: var(--negative, #c0392b); }
-.envelope-balance.positive { color: var(--positive, #2fa36b); }
-.history-row { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, Canvas 80%, GrayText); }
+.envelope-balance.negative { color: var(--negative); }
+.envelope-balance.positive { color: var(--positive); }
+.history-row { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--s3); padding: var(--s2) 0; border-bottom: 1px solid color-mix(in srgb, Canvas 80%, GrayText); }
 .history-amount { font-weight: 600; }
-.history-amount.out { color: var(--negative, #c0392b); }
+.history-amount.out { color: var(--negative); }
 .history-context { grid-column: 1 / -1; font-size: 0.8rem; opacity: 0.7; }
 
 /* Period open funds + breakdown */
-.open-funds { color: var(--warning, #c98a00); font-size: 0.9rem; margin-top: 8px; }
-.move-leftover { margin-top: 4px; }
-.breakdown { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+.open-funds { color: var(--warning); font-size: 0.9rem; margin-top: var(--s2); }
+.move-leftover { margin-top: var(--s1); }
+.breakdown { display: flex; flex-direction: column; gap: 2px; margin-top: var(--s2); }
 
 /* Buttons + dialogs reused by Slice 2 */
-.btn.destructive { color: var(--negative, #c0392b); }
+.btn.destructive { color: var(--negative); }
 .expense-item { text-align: left; width: 100%; }
+
+/* Settings status rows + attention dot (Slice 3) */
+.config-theme-row { display: flex; gap: var(--s2); }
+.config-theme-btn.active { border-color: var(--brand); color: var(--brand); }
+.config-status { display: flex; align-items: center; gap: var(--s2); min-height: 44px; }
+.config-status .status-icon { width: 1.5rem; text-align: center; }
+.config-status .status-text { flex: 1; }
+.attention-dot { color: var(--warning); margin-left: var(--s2); font-size: 0.7rem; vertical-align: middle; }
+
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+@media (min-width: 720px) {
+  .app { max-width: 760px; }
+  .periods { display: grid; grid-template-columns: repeat(2, 1fr); }
+}

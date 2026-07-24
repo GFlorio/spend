@@ -80,6 +80,7 @@ export function monthLabel(monthKey) {
 
 /** Re-render the whole Month screen for the given month. @param {string} monthKey */
 export async function renderMonth(monthKey) {
+  if (monthKey !== selectedMonthKey) { expandedPeriods.clear(); statusExpanded = false; }
   selectedMonthKey = monthKey;
   const { view, bills } = await buildView(monthKey);
   lastView = view;
@@ -410,6 +411,15 @@ async function openSelector() {
     btn.type = 'button';
     btn.className = 'btn';
     btn.textContent = monthLabel(m.monthKey);
+    const { view } = await buildView(m.monthKey);
+    if (view.hasOpenFunds) {
+      const dot = document.createElement('span');
+      dot.className = 'attention-dot';
+      dot.textContent = '●';
+      dot.setAttribute('aria-label', 'has open funds');
+      dot.title = 'Has open funds';
+      btn.append(dot);
+    }
     btn.addEventListener('click', () => {
       void (async () => {
         selectSheet.close();

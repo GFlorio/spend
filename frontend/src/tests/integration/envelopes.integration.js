@@ -2,7 +2,7 @@ import './setup.js';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { Activities } from '../../data-activities.js';
 import * as db from '../../db.js';
-import { Envelopes } from '../../data-envelopes.js';
+import { Envelopes } from '../../data.js';
 
 beforeEach(async () => { await db.resetDB(); });
 
@@ -24,6 +24,13 @@ describe('Envelopes', () => {
     const renamed = await Envelopes.rename(e.id, 'Emergency');
     expect(renamed.id).toBe(e.id);
     expect((await Envelopes.get(e.id))?.name).toBe('Emergency');
+  });
+
+  test('get returns undefined for a missing id', async () => {
+    expect(await Envelopes.get('env:nope')).toBeUndefined();
+  });
+  test('rename throws for a missing id', async () => {
+    await expect(Envelopes.rename('env:nope', 'X')).rejects.toThrow(/not found/i);
   });
 });
 

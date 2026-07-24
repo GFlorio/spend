@@ -27,6 +27,13 @@ function isCompleted(period, monthKey, todayKey) {
   return period.endDay < Number(todayKey.slice(8, 10));
 }
 
+/** @param {number} idx @param {number} n @param {string} what */
+function assertPeriodIndex(idx, n, what) {
+  if (!Number.isInteger(idx) || idx < 0 || idx >= n) {
+    throw new Error(`computeMonth: ${what} periodIndex ${idx} out of range [0,${n})`);
+  }
+}
+
 /**
  * Derives the monthly view from primary records: proportional allocation, whole-month
  * debits, transfers, deficit carry (negatives only), safe-to-spend, and open funds.
@@ -47,15 +54,22 @@ export function computeMonth({ monthKey, available, bills, activities, todayKey 
   const wholeMonthDebit = periods.map(() => 0);
 
   for (const a of activities) {
-    if (a.destination.type === 'period') { transferIn[a.destination.periodIndex] += a.amount; }
+    if (a.destination.type === 'period') {
+      assertPeriodIndex(a.destination.periodIndex, n, 'destination');
+      transferIn[a.destination.periodIndex] += a.amount;
+    }
     for (const alloc of a.allocations) {
       const source = alloc.source;
       if (source.type === 'period') {
+        assertPeriodIndex(source.periodIndex, n, 'source');
         out[source.periodIndex] += alloc.amount;
         if (a.destination.type === 'spent') { spent[source.periodIndex] += alloc.amount; }
       } else if (source.type === 'wholeMonth') {
         const shares = allocate(alloc.amount, periods);
-        for (let i = 0; i < n; i++) { wholeMonthDebit[i] += shares[i]; }
+        for (let i = 0; i < n; i++) {
+          wholeMonthDebit[i] += shares[i];
+          if (a.destination.type === 'spent') { spent[i] += shares[i]; }
+        }
       }
       // 'envelope' and 'outside' sources do not touch period balances
     }
@@ -109,12 +123,15 @@ export function computeEnvelopes(envelopes, allActivities) {
   /** @type {Map<string, number>} */
   const balance = new Map(envelopes.map((e) => [e.id, 0]));
   for (const a of allActivities) {
-    if (a.destination.type === 'envelope') {
-      balance.set(a.destination.envelopeId, (balance.get(a.destination.envelopeId) ?? 0) + a.amount);
+    const dest = a.destination;
+    if (dest.type === 'envelope') {
+      const cur = balance.get(dest.envelopeId);
+      if (cur !== undefined) { balance.set(dest.envelopeId, cur + a.amount); }
     }
     for (const alloc of a.allocations) {
       if (alloc.source.type === 'envelope') {
-        balance.set(alloc.source.envelopeId, (balance.get(alloc.source.envelopeId) ?? 0) - alloc.amount);
+        const cur = balance.get(alloc.source.envelopeId);
+        if (cur !== undefined) { balance.set(alloc.source.envelopeId, cur - alloc.amount); }
       }
     }
   }

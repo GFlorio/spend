@@ -11,6 +11,25 @@ import { now, randomUUID } from './utils.js';
 /** @param {string} monthKey @param {number} timestamp */
 const activityId = (monthKey, timestamp) => `act:${monthKey}:${String(timestamp).padStart(15, '0')}-${randomUUID().slice(0, 8)}`;
 
+/**
+ * Enforces CAL-4 conservation: amount is a non-negative integer and equals the sum of
+ * non-negative integer allocation amounts.
+ * @param {number} amount @param {Allocation[]} allocations
+ */
+export function assertConserved(amount, allocations) {
+  if (!Number.isInteger(amount) || amount < 0) {
+    throw new Error(`Activity amount ${amount} must be a non-negative integer`);
+  }
+  let sum = 0;
+  for (const a of allocations) {
+    if (!Number.isInteger(a.amount) || a.amount < 0) {
+      throw new Error(`Allocation amount ${a.amount} must be a non-negative integer`);
+    }
+    sum += a.amount;
+  }
+  if (sum !== amount) { throw new Error(`Allocations sum ${sum} !== amount ${amount}`); }
+}
+
 export const Activities = {
   /** @param {string} monthKey @returns {Promise<Activity[]>} */
   async listForMonth(monthKey) {
@@ -35,6 +54,7 @@ export const Activities = {
    * @returns {Promise<Activity>}
    */
   async create({ monthKey, periodIndex, destination, amount, description = '', allocations }) {
+    assertConserved(amount, allocations);
     const timestamp = now();
     /** @type {Activity} */
     const activity = {
@@ -66,6 +86,7 @@ export const Activities = {
    * @returns {Promise<Activity>}
    */
   async update(id, patch) {
+    assertConserved(patch.amount, patch.allocations);
     const existing = await db.get('activities', id);
     if (!existing) { throw new Error(`Activity ${id} not found`); }
     /** @type {Activity} */

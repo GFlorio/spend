@@ -54,7 +54,19 @@
           <button type="button" class="btn config-theme-btn" data-theme="dark">Dark</button>
         </div>
       </div>
-      <p class="config-note">Data controls and app-health status arrive in a later update.</p>
+      <div class="config-section">
+        <div class="config-label">App status</div>
+        <div class="config-status" id="statusInstall"></div>
+        <div class="config-status" id="statusOffline"></div>
+        <div class="config-status" id="statusStorage"></div>
+      </div>
+      <div class="config-section">
+        <div class="config-label">Data</div>
+        <button type="button" class="btn primary" id="dataExport">Export backup</button>
+        <button type="button" class="btn" id="dataImport">Import backup…</button>
+        <input type="file" id="dataImportFile" accept="application/json,.json" class="hidden" aria-label="Backup file">
+        <button type="button" class="btn destructive" id="dataReset">Reset all data</button>
+      </div>
     </div>
   </dialog>
 
