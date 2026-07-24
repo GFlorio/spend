@@ -169,6 +169,20 @@ describe('computeEnvelopeHistory', () => {
   });
 });
 
+describe('computeMonth — whole-month-funded expense (Slice 2 deferral)', () => {
+  test('feeds spent[] proportionally and leaves safe-to-spend as the net debit', () => {
+    const view = computeMonth({
+      ...base,
+      activities: [{
+        destination: { type: 'spent' }, amount: 10000,
+        allocations: [{ source: { type: 'wholeMonth' }, amount: 10000 }],
+      }],
+    });
+    expect(view.periods.reduce((s, p) => s + p.spent, 0)).toBe(10000);
+    expect(view.safeToSpend).toBe(300000 - 10000);
+  });
+});
+
 describe('computeMonth — periodIndex bounds (Slice 1 deferral)', () => {
   test('throws on an out-of-range source periodIndex', () => {
     expect(() => computeMonth({ ...base, activities: [expense(99, 100)] })).toThrow(/out of range/);

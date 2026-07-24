@@ -66,7 +66,10 @@ export function computeMonth({ monthKey, available, bills, activities, todayKey 
         if (a.destination.type === 'spent') { spent[source.periodIndex] += alloc.amount; }
       } else if (source.type === 'wholeMonth') {
         const shares = allocate(alloc.amount, periods);
-        for (let i = 0; i < n; i++) { wholeMonthDebit[i] += shares[i]; }
+        for (let i = 0; i < n; i++) {
+          wholeMonthDebit[i] += shares[i];
+          if (a.destination.type === 'spent') { spent[i] += shares[i]; }
+        }
       }
       // 'envelope' and 'outside' sources do not touch period balances
     }
