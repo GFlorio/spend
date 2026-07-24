@@ -2,7 +2,7 @@ import './setup.js';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { computeMonth } from '../../compute.js';
 import * as db from '../../db.js';
-import { Activities } from '../../data-activities.js';
+import { Activities } from '../../data.js';
 import { addExpense, createMonth } from './helpers.js';
 
 beforeEach(async () => { await db.resetDB(); });
