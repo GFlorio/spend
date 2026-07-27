@@ -3,6 +3,7 @@ import { formatMoney, parseMoney } from '../money.js';
 import { periodsForMonthKey } from '../periods.js';
 import { activityTotal, redistributeEqual, removeProportional } from '../split.js';
 import * as $ from '../utils.js';
+import { inputSheet, pickList } from './dialogs.js';
 import { describeDestination, describeSource } from './labels.js';
 
 /** @typedef {import('../data.js').Source} Source */
@@ -201,16 +202,21 @@ function renderProjection() {
   el.textContent = lines.join('  ·  ');
 }
 
-/** @returns {Source|null} prompt for a new envelope, returning a pending source */
-function newEnvelopeSource() {
-  const name = prompt('New envelope name')?.trim();
-  if (!name) { return null; }
+/** @returns {Promise<Source|null>} ask for a new envelope, returning a pending source */
+async function newEnvelopeSource() {
+  const values = await inputSheet({
+    title: 'New envelope',
+    fields: [{ name: 'name', label: 'Envelope name', required: true }],
+    confirmLabel: 'Create',
+  });
+  if (!values) { return null; }
+  const name = /** @type {string} */ (values.name);
   const tempId = `new:${state.pending.size}:${name}`;
   state.pending.set(tempId, name);
   return { type: 'envelope', envelopeId: tempId };
 }
 
-function addSource() {
+async function addSource() {
   const used = state.rows.map((r) => r.source);
   /** @type {Source[]} */
   const candidates = [];
@@ -224,14 +230,12 @@ function addSource() {
   else if (state.destination.type === 'period') { asSource = { type: 'period', periodIndex: state.destination.periodIndex }; }
   const available = candidates.filter((c) => !used.some((u) => sameRef(u, c)) && !(asSource && sameRef(asSource, c)));
 
-  // Build a tiny picker via prompt of numbered options plus new-envelope.
-  const labels = available.map((c, i) => `${i + 1}. ${describeSource(c, envName, periods())}`);
-  const choice = prompt(`Add source:\n${labels.join('\n')}\n\nEnter a number, or "new" for a new envelope`);
+  /** @type {Array<{ label:string, value:Source|'new' }>} */
+  const options = available.map((c) => ({ label: describeSource(c, envName, periods()), value: c }));
+  options.push({ label: '＋ New envelope', value: 'new' });
+  const choice = await pickList({ title: 'Add source', options });
   if (!choice) { return; }
-  /** @type {Source|null} */
-  let source = null;
-  if (choice.trim().toLowerCase() === 'new') { source = newEnvelopeSource(); }
-  else { const idx = Number(choice) - 1; source = available[idx] ?? null; }
+  const source = choice === 'new' ? await newEnvelopeSource() : choice;
   if (!source) { return; }
   state.rows.push({ source, amount: 0 });
   const even = redistributeEqual(state.total, state.rows.length);
@@ -241,10 +245,15 @@ function addSource() {
 }
 
 /** @param {string} value the destination <select> value */
-function onDestinationChange(value) {
+async function onDestinationChange(value) {
   if (value === 'new-envelope') {
-    const name = prompt('New envelope name')?.trim();
-    if (!name) { render(); return; }
+    const values = await inputSheet({
+      title: 'New envelope',
+      fields: [{ name: 'name', label: 'Envelope name', required: true }],
+      confirmLabel: 'Create',
+    });
+    if (!values) { render(); return; }
+    const name = /** @type {string} */ (values.name);
     const tempId = `new:${state.pending.size}:${name}`;
     state.pending.set(tempId, name);
     state.destination = { type: 'envelope', envelopeId: tempId };
@@ -366,10 +375,10 @@ export function setupActivity(saved) {
   });
 
   $.id('activityDestination').addEventListener('change', (e) => {
-    onDestinationChange(/** @type {HTMLSelectElement} */ (e.target).value);
+    void onDestinationChange(/** @type {HTMLSelectElement} */ (e.target).value);
   });
 
-  $.button($.id('activityAddSource')).addEventListener('click', () => addSource());
+  $.button($.id('activityAddSource')).addEventListener('click', () => { void addSource(); });
 
   $.form($.id('activityForm')).addEventListener('submit', (e) => {
     e.preventDefault();

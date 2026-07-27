@@ -4,6 +4,7 @@ import { formatMoney, parseMoney } from '../money.js';
 import { activityTotal } from '../split.js';
 import * as $ from '../utils.js';
 import { openActivityCreate, openActivityEdit, setupActivity } from './activity.js';
+import { confirmDialog, inputSheet } from './dialogs.js';
 
 /**
  * Opens the scope chooser and resolves to the selected scope, or null if dismissed.
@@ -165,9 +166,12 @@ function renderBillList(bills) {
     name.textContent = bill.name;
     name.addEventListener('click', () => {
       void (async () => {
-        const next = prompt('Rename bill', bill.name);
-        if (next?.trim()) {
-          await Bills.rename(bill.seriesId, next.trim());
+        const values = await inputSheet({
+          title: 'Rename bill',
+          fields: [{ name: 'name', label: 'Bill name', value: bill.name, required: true }],
+        });
+        if (values) {
+          await Bills.rename(bill.seriesId, /** @type {string} */ (values.name));
           await refresh();
         }
       })();
@@ -181,15 +185,21 @@ function renderBillList(bills) {
     amount.addEventListener('click', () => {
       void (async () => {
         if (bill.paid) {
-          const entered = parseMoney(prompt('Actual amount', ((bill.actual ?? bill.expected) / 100).toFixed(2)) ?? '');
-          if (entered !== null && entered >= 0) { await Bills.setActual(bill.id, entered); await refresh(); }
+          const values = await inputSheet({
+            title: 'Actual amount',
+            fields: [{ name: 'amount', label: 'Actual amount', kind: 'amount', value: bill.actual ?? bill.expected, required: true }],
+          });
+          if (values) { await Bills.setActual(bill.id, /** @type {number} */ (values.amount)); await refresh(); }
           return;
         }
-        const entered = parseMoney(prompt('Expected amount', (bill.expected / 100).toFixed(2)) ?? '');
-        if (entered === null || entered < 0) { return; }
+        const values = await inputSheet({
+          title: 'Expected amount',
+          fields: [{ name: 'amount', label: 'Expected amount', kind: 'amount', value: bill.expected, required: true }],
+        });
+        if (!values) { return; }
         const scope = await chooseScope('Change expected amount');
         if (!scope) { return; }
-        await Bills.setExpected(bill.id, entered, scope);
+        await Bills.setExpected(bill.id, /** @type {number} */ (values.amount), scope);
         await refresh();
       })();
     });
@@ -201,7 +211,13 @@ function renderBillList(bills) {
     remove.setAttribute('aria-label', `Remove ${bill.name}`);
     remove.addEventListener('click', () => {
       void (async () => {
-        if (bill.paid && !confirm(`${bill.name} is paid. Remove it anyway?`)) { return; }
+        if (bill.paid) {
+          const ok = await confirmDialog({
+            title: 'Remove bill', message: `${bill.name} is paid. Remove it anyway?`,
+            confirmLabel: 'Remove', destructive: true,
+          });
+          if (!ok) { return; }
+        }
         const scope = await chooseScope('Remove bill');
         if (!scope) { return; }
         await Bills.remove(bill.id, scope);
@@ -218,11 +234,20 @@ function renderBillList(bills) {
   add.textContent = '+ Add bill';
   add.addEventListener('click', () => {
     void (async () => {
-      const name = prompt('Bill name')?.trim();
-      if (!name) { return; }
-      const expected = parseMoney(prompt('Expected amount') ?? '');
-      if (expected === null || expected < 0) { return; }
-      await Bills.create({ monthKey: /** @type {string} */ (selectedMonthKey), name, expected });
+      const values = await inputSheet({
+        title: 'Add bill',
+        fields: [
+          { name: 'name', label: 'Bill name', required: true },
+          { name: 'expected', label: 'Expected amount', kind: 'amount', required: true },
+        ],
+        confirmLabel: 'Add bill',
+      });
+      if (!values) { return; }
+      await Bills.create({
+        monthKey: /** @type {string} */ (selectedMonthKey),
+        name: /** @type {string} */ (values.name),
+        expected: /** @type {number} */ (values.expected),
+      });
       await refresh();
     })();
   });
@@ -243,9 +268,12 @@ function renderAmountEditor(view) {
   btn.textContent = `Monthly amount: ${formatMoney(view.available)} · Edit`;
   btn.addEventListener('click', () => {
     void (async () => {
-      const entered = parseMoney(prompt('Monthly available amount', (view.available / 100).toFixed(2)) ?? '');
-      if (entered !== null && entered >= 0) {
-        await Months.setAvailable(/** @type {string} */ (selectedMonthKey), entered);
+      const values = await inputSheet({
+        title: 'Monthly amount',
+        fields: [{ name: 'amount', label: 'Available this month', kind: 'amount', value: view.available, required: true }],
+      });
+      if (values) {
+        await Months.setAvailable(/** @type {string} */ (selectedMonthKey), /** @type {number} */ (values.amount));
         await refresh();
       }
     })();

@@ -113,6 +113,14 @@ dialog::backdrop { background: rgba(0,0,0,0.4); }
 .config-status .status-text { flex: 1; }
 .attention-dot { color: var(--warning); margin-left: var(--s2); font-size: 0.7rem; vertical-align: middle; }
 
+/* Themed dialogs (dialogs.js) */
+.dialog-body { display: flex; flex-direction: column; gap: var(--s4); }
+.dialog-message { margin: 0; white-space: pre-line; }
+.dialog-actions { display: flex; gap: var(--s2); }
+.dialog-actions .btn { flex: 1; }
+.pick-list { display: flex; flex-direction: column; gap: var(--s2); }
+.pick-list .btn { text-align: left; }
+
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 @media (min-width: 720px) {

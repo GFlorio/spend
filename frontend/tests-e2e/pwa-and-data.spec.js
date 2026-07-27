@@ -6,7 +6,6 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('export, reset, then re-import restores the dataset', async ({ page }) => {
-  page.on('dialog', (d) => d.accept());
   await page.goto('/');
 
   // Create a month.
@@ -23,14 +22,17 @@ test('export, reset, then re-import restores the dataset', async ({ page }) => {
   expect(download.suggestedFilename()).toContain('spend-backup');
   const filePath = await download.path();
 
-  // Reset wipes everything → the setup dialog returns.
+  // Reset wipes everything → confirm in the themed dialog → the setup dialog returns.
   await page.getByRole('button', { name: 'Reset all data' }).click();
+  await page.getByRole('button', { name: 'Reset', exact: true }).click();
   await expect(page.getByLabel('Available this month')).toBeVisible();
 
   // Cancel setup so the nav is reachable, then re-import the backup.
   await page.locator('#monthSetupClose').click();
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.setInputFiles('#dataImportFile', filePath);
+  // Confirm the replace in the themed dialog.
+  await page.getByRole('button', { name: 'Replace', exact: true }).click();
 
   // Import reloads the app; the month is restored.
   await expect(page.locator('#statusCard .hero')).toContainText('$3,000.00 available');

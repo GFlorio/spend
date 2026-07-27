@@ -3,6 +3,7 @@ import {
   installStatus, offlineReadiness, persistentStorage, promptInstall, requestPersist,
 } from '../pwa.js';
 import * as $ from '../utils.js';
+import { confirmDialog, messageDialog } from './dialogs.js';
 
 /** @returns {'auto'|'light'|'dark'} */
 function storedTheme() {
@@ -121,10 +122,15 @@ export function setupSettings() {
       if (!file) { return; }
       /** @type {any} */
       let dump;
-      try { dump = JSON.parse(await file.text()); } catch { alert('Import failed: the file is not valid JSON.'); return; }
-      if (!confirm(`Replace all local data with:\n${summarize(dump)}\n\nThis cannot be undone.`)) { return; }
+      try { dump = JSON.parse(await file.text()); } catch { await messageDialog({ title: 'Import failed', message: 'The file is not valid JSON.' }); return; }
+      const ok = await confirmDialog({
+        title: 'Replace all data?',
+        message: `Replace all local data with:\n${summarize(dump)}\n\nThis cannot be undone.`,
+        confirmLabel: 'Replace', destructive: true,
+      });
+      if (!ok) { return; }
       try { await importDB(dump); } catch (e) {
-        alert(`Import failed: ${e instanceof Error ? e.message : 'invalid file'}`);
+        await messageDialog({ title: 'Import failed', message: e instanceof Error ? e.message : 'The file is not a valid backup.' });
         return;
       }
       location.reload();
@@ -133,7 +139,12 @@ export function setupSettings() {
 
   $.button($.id('dataReset')).addEventListener('click', () => {
     void (async () => {
-      if (!confirm('Erase ALL local financial data? This cannot be undone.')) { return; }
+      const ok = await confirmDialog({
+        title: 'Reset all data',
+        message: 'This erases all local financial data. It cannot be undone unless you have a backup.',
+        confirmLabel: 'Reset', destructive: true,
+      });
+      if (!ok) { return; }
       await resetDB();
       location.reload();
     })();
