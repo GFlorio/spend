@@ -5,7 +5,11 @@ node = "24"
 _.path = ["{{config_root}}/node_modules/.bin", "{{config_root}}/frontend/node_modules/.bin"]
 
 [tasks.bootstrap]
-run = ["npm ci", "cd frontend && npx playwright install --with-deps"]
+run = ["npm ci", "cd frontend && npx playwright install --with-deps", "mise run hooks-install"]
+
+[tasks.hooks-install]
+description = "Configure git to use the versioned hooks directory"
+run = "git config core.hooksPath hooks"
 
 [tasks.dev]
 description = "Start Vite dev server"
