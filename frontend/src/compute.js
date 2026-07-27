@@ -7,7 +7,7 @@ import { activityTotal } from './split.js';
  * @typedef {import('./data-activities.js').Source} Source
  * @typedef {import('./data-activities.js').Allocation} Allocation
  * @typedef {{ paid:boolean, actual:number|null, expected:number }} BillInput
- * @typedef {{ destination:Destination, amount:number, allocations:Allocation[] }} ActivityInput
+ * @typedef {{ destination:Destination, allocations:Allocation[] }} ActivityInput
  * @typedef {Period & { allocation:number, carryIn:number, transferIn:number, out:number, wholeMonthDebit:number, spent:number, remaining:number, completed:boolean, openFunds:boolean }} PeriodView
  * @typedef {{ available:number, billsReserved:number, paidCount:number, billCount:number, spendingPool:number, safeToSpend:number, hasOpenFunds:boolean, periods:PeriodView[] }} MonthView
  * @typedef {import('./data-activities.js').Activity} Activity

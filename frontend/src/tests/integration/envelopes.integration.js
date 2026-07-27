@@ -38,11 +38,11 @@ describe('Envelopes — derived balances', () => {
   test('fund from a period then spend, balance reconciles', async () => {
     const travel = await Envelopes.create({ name: 'Travel' });
     await Activities.create({
-      monthKey: '2026-07', periodIndex: 2, destination: { type: 'envelope', envelopeId: travel.id }, amount: 10000,
+      monthKey: '2026-07', periodIndex: 2, destination: { type: 'envelope', envelopeId: travel.id },
       allocations: [{ source: { type: 'period', periodIndex: 2 }, amount: 10000 }],
     });
     await Activities.create({
-      monthKey: '2026-07', periodIndex: 2, destination: { type: 'spent' }, amount: 3000,
+      monthKey: '2026-07', periodIndex: 2, destination: { type: 'spent' },
       allocations: [{ source: { type: 'envelope', envelopeId: travel.id }, amount: 3000 }],
     });
     const balances = await Envelopes.withBalances();

@@ -4,7 +4,7 @@ import { computeEnvelopeHistory, computeEnvelopes, computeMonth } from '../compu
 const base = { monthKey: '2026-07', available: 300000, bills: [], activities: [] };
 /** @param {number} periodIndex @param {number} amount @returns {import('../compute.js').ActivityInput} */
 const expense = (periodIndex, amount) => ({
-  destination: { type: 'spent' }, amount,
+  destination: { type: 'spent' },
   allocations: [{ source: { type: 'period', periodIndex }, amount }],
 });
 
@@ -64,7 +64,7 @@ describe('computeMonth — transfers between periods', () => {
     const view = computeMonth({
       ...base,
       activities: [{
-        destination: { type: 'period', periodIndex: 1 }, amount: 10000,
+        destination: { type: 'period', periodIndex: 1 },
         allocations: [{ source: { type: 'period', periodIndex: 0 }, amount: 10000 }],
       }],
     });
@@ -79,7 +79,7 @@ describe('computeMonth — whole-month envelope funding (TRX-6)', () => {
     const view = computeMonth({
       ...base,
       activities: [{
-        destination: { type: 'envelope', envelopeId: 'env:t' }, amount: 31000,
+        destination: { type: 'envelope', envelopeId: 'env:t' },
         allocations: [{ source: { type: 'wholeMonth' }, amount: 31000 }],
       }],
     });
@@ -125,13 +125,13 @@ const env = (id, name) => ({ id, name, createdAt: 0, updatedAt: 0 });
  */
 const fundFromPeriod = (envelopeId, amount) => ({
   id: 'act:1', monthKey: '2026-07', periodIndex: 2, description: 'fund', createdAt: 0, updatedAt: 0,
-  destination: { type: 'envelope', envelopeId }, amount,
+  destination: { type: 'envelope', envelopeId },
   allocations: [{ source: { type: 'period', periodIndex: 2 }, amount }],
 });
 /** @param {string} envelopeId @param {number} amount @returns {import('../data-activities.js').Activity} */
 const spendFromEnvelope = (envelopeId, amount) => ({
   id: 'act:2', monthKey: '2026-07', periodIndex: 2, description: 'buy', createdAt: 0, updatedAt: 0,
-  destination: { type: 'spent' }, amount,
+  destination: { type: 'spent' },
   allocations: [{ source: { type: 'envelope', envelopeId }, amount }],
 });
 
@@ -150,7 +150,7 @@ describe('computeEnvelopes', () => {
     /** @type {import('../data-activities.js').Activity} */
     const transfer = {
       id: 'act:3', monthKey: '2026-07', periodIndex: 0, description: '', createdAt: 0, updatedAt: 0,
-      destination: { type: 'envelope', envelopeId: 'env:a' }, amount: 4000,
+      destination: { type: 'envelope', envelopeId: 'env:a' },
       allocations: [{ source: { type: 'envelope', envelopeId: 'env:b' }, amount: 4000 }],
     };
     const balances = computeEnvelopes([env('env:a', 'A'), env('env:b', 'B')], [transfer]);
@@ -174,7 +174,7 @@ describe('computeMonth — whole-month-funded expense (Slice 2 deferral)', () =>
     const view = computeMonth({
       ...base,
       activities: [{
-        destination: { type: 'spent' }, amount: 10000,
+        destination: { type: 'spent' },
         allocations: [{ source: { type: 'wholeMonth' }, amount: 10000 }],
       }],
     });
@@ -191,7 +191,7 @@ describe('computeMonth — periodIndex bounds (Slice 1 deferral)', () => {
     expect(() => computeMonth({
       ...base,
       activities: [{
-        destination: { type: 'period', periodIndex: 99 }, amount: 100,
+        destination: { type: 'period', periodIndex: 99 },
         allocations: [{ source: { type: 'wholeMonth' }, amount: 100 }],
       }],
     })).toThrow(/out of range/);
@@ -204,12 +204,12 @@ describe('computeEnvelopes / history — carried cases', () => {
   /** @param {Partial<import('../data-activities.js').Activity>} over @returns {import('../data-activities.js').Activity} */
   const act = (over) => ({
     id: 'act:1', monthKey: '2026-07', periodIndex: 0, description: '',
-    amount: 0, destination: { type: 'spent' }, allocations: [], createdAt: 1, updatedAt: 1, ...over,
+    destination: { type: 'spent' }, allocations: [], createdAt: 1, updatedAt: 1, ...over,
   });
 
   test('an activity referencing an unlisted envelope id does not affect listed balances', () => {
     const acts = [act({
-      amount: 500, destination: { type: 'envelope', envelopeId: 'env:ghost' },
+      destination: { type: 'envelope', envelopeId: 'env:ghost' },
       allocations: [{ source: { type: 'period', periodIndex: 0 }, amount: 500 }],
     })];
     const [v] = computeEnvelopes([env('env:1', 'A')], acts);
@@ -218,7 +218,7 @@ describe('computeEnvelopes / history — carried cases', () => {
 
   test('an in-row counterparty lists every source of the funding activity', () => {
     const acts = [act({
-      amount: 300, destination: { type: 'envelope', envelopeId: 'env:1' },
+      destination: { type: 'envelope', envelopeId: 'env:1' },
       allocations: [
         { source: { type: 'period', periodIndex: 0 }, amount: 200 },
         { source: { type: 'outside' }, amount: 100 },

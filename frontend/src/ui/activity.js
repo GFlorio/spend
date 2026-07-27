@@ -301,9 +301,9 @@ async function save() {
   const description = $.input($.id('activityDescription')).value.trim();
 
   if (state.mode === 'edit' && state.editingId) {
-    await Activities.update(state.editingId, { destination, amount: state.total, description, allocations });
+    await Activities.update(state.editingId, { destination, description, allocations });
   } else {
-    await Activities.create({ monthKey: state.monthKey, periodIndex: state.periodIndex, destination, amount: state.total, description, allocations });
+    await Activities.create({ monthKey: state.monthKey, periodIndex: state.periodIndex, destination, description, allocations });
   }
   $.dialog($.id('activityDialog')).close();
   await onSaved();

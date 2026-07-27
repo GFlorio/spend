@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import { computeMonth } from '../../compute.js';
 import * as db from '../../db.js';
 import { Activities } from '../../data.js';
+import { activityTotal } from '../../split.js';
 import { addExpense, createMonth } from './helpers.js';
 
 beforeEach(async () => { await db.resetDB(); });
@@ -12,12 +13,12 @@ describe('Activities', () => {
     const a = await Activities.createExpense({ monthKey: '2026-07', periodIndex: 2, amount: 5000 });
     expect(a.destination).toEqual({ type: 'spent' });
     expect(a.allocations).toEqual([{ source: { type: 'period', periodIndex: 2 }, amount: 5000 }]);
-    expect(a.amount).toBe(5000);
+    expect(activityTotal(a.allocations)).toBe(5000);
   });
 
   test('create persists a split expense (period + envelope)', async () => {
     const a = await Activities.create({
-      monthKey: '2026-07', periodIndex: 2, destination: { type: 'spent' }, amount: 10000,
+      monthKey: '2026-07', periodIndex: 2, destination: { type: 'spent' },
       allocations: [
         { source: { type: 'period', periodIndex: 2 }, amount: 6000 },
         { source: { type: 'envelope', envelopeId: 'env:g' }, amount: 4000 },
@@ -30,14 +31,16 @@ describe('Activities', () => {
   test('update replaces amount, destination and allocations in place', async () => {
     const a = await Activities.createExpense({ monthKey: '2026-07', periodIndex: 0, amount: 5000 });
     const updated = await Activities.update(a.id, {
-      destination: { type: 'envelope', envelopeId: 'env:t' }, amount: 3000, description: 'moved',
+      destination: { type: 'envelope', envelopeId: 'env:t' }, description: 'moved',
       allocations: [{ source: { type: 'period', periodIndex: 0 }, amount: 3000 }],
     });
     expect(updated.id).toBe(a.id);
     expect(updated.createdAt).toBe(a.createdAt);
     expect(updated.updatedAt).toBeGreaterThanOrEqual(a.createdAt);
     expect(updated.destination).toEqual({ type: 'envelope', envelopeId: 'env:t' });
-    expect((await Activities.get(a.id))?.amount).toBe(3000);
+    const stored = await Activities.get(a.id);
+    expect(stored).toBeDefined();
+    expect(activityTotal(/** @type {any} */ (stored).allocations)).toBe(3000);
   });
 
   test('remove deletes the record', async () => {
@@ -56,6 +59,20 @@ describe('Activities', () => {
     expect(await Activities.listForPeriod('2026-07', 2)).toHaveLength(2);
     expect(await Activities.listForPeriod('2026-07', 0)).toHaveLength(1);
   });
+
+  test('a created activity stores no amount field; its total derives from allocations', async () => {
+    const a = await Activities.create({
+      monthKey: '2026-07', periodIndex: 0, destination: { type: 'spent' },
+      allocations: [
+        { source: { type: 'period', periodIndex: 0 }, amount: 6000 },
+        { source: { type: 'outside' }, amount: 4000 },
+      ],
+    });
+    const stored = await Activities.get(a.id);
+    expect(stored).toBeDefined();
+    expect('amount' in /** @type {object} */ (stored)).toBe(false);
+    expect(activityTotal(/** @type {any} */ (stored).allocations)).toBe(10000);
+  });
 });
 
 describe('Activities — edit/delete reverse effects', () => {
@@ -66,7 +83,7 @@ describe('Activities — edit/delete reverse effects', () => {
     expect(v1.safeToSpend).toBe(295000);
 
     await Activities.update(a.id, {
-      destination: { type: 'spent' }, amount: 2000, description: '',
+      destination: { type: 'spent' }, description: '',
       allocations: [{ source: { type: 'period', periodIndex: 0 }, amount: 2000 }],
     });
     const acts2 = await Activities.listForMonth('2026-07');
