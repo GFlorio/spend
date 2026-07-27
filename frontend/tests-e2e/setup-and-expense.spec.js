@@ -8,6 +8,10 @@ test.beforeEach(async ({ page }) => {
 test('first run: set up a month, then record an expense', async ({ page }) => {
   await page.goto('/');
 
+  // First run greets the user and points to the import escape hatch.
+  await expect(page.locator('#monthSetupIntro')).toBeVisible();
+  await expect(page.locator('#monthSetupIntro')).toContainText('import a backup');
+
   // Setup dialog appears with no data.
   await page.getByLabel('Available this month').fill('3000');
   await page.getByRole('button', { name: 'Create month' }).click();

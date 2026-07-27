@@ -83,6 +83,7 @@
     <form id="monthSetupForm" class="sheet-inner" method="dialog">
       <div class="sheet-header"><span id="monthSetupTitle">New month</span>
         <button type="button" class="btn ghost" id="monthSetupClose" aria-label="Close">✕</button></div>
+      <p id="monthSetupIntro" class="sheet-intro hidden"></p>
       <label class="field"><span>Available this month</span>
         <input type="text" inputmode="decimal" id="monthSetupAmount" required autocomplete="off"></label>
       <label class="field copy-field hidden" id="monthSetupCopyField">
@@ -96,8 +97,9 @@
     <form id="activityForm" class="sheet-inner" method="dialog">
       <div class="sheet-header"><span id="activityTitle">Add expense</span>
         <button type="button" class="btn ghost" id="activityClose" aria-label="Close">✕</button></div>
-      <label class="field"><span>Amount</span>
-        <input type="text" inputmode="decimal" id="activityAmount" required autocomplete="off"></label>
+      <label class="field amount-field"><span>Amount</span>
+        <span class="amount-input"><span class="amount-prefix" aria-hidden="true">$</span>
+          <input type="text" inputmode="decimal" id="activityAmount" required autocomplete="off" aria-label="Amount"></span></label>
       <label class="field"><span>Description (optional)</span>
         <input type="text" id="activityDescription" autocomplete="off"></label>
       <label class="field"><span>To</span>

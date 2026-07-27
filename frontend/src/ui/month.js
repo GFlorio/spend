@@ -305,7 +305,13 @@ async function renderPeriods(view) {
     range.className = 'range';
     const rangeText = `${p.startDay}–${p.endDay}`;
     range.textContent = rangeText;
-    card.setAttribute('aria-label', `Period ${rangeText}`);
+    if (p.index === current) {
+      const now = document.createElement('span');
+      now.className = 'now-label';
+      now.textContent = 'Now';
+      range.append(now);
+    }
+    card.setAttribute('aria-label', `Period ${rangeText}${p.index === current ? ' (current)' : ''}`);
 
     const remaining = document.createElement('div');
     remaining.className = `remaining${p.remaining < 0 ? ' negative' : ''}`;
@@ -317,11 +323,16 @@ async function renderPeriods(view) {
 
     const add = document.createElement('button');
     add.type = 'button';
-    add.className = 'btn small';
+    add.className = 'btn primary small';
     add.textContent = '+ Add';
     add.addEventListener('click', () => openActivity(p.index));
 
-    card.append(range, remaining, secondary, add);
+    card.append(range, remaining, secondary);
+
+    // One action row: primary Add, then Move leftover (secondary) and Details (ghost).
+    const actions = document.createElement('div');
+    actions.className = 'period-actions';
+    actions.append(add);
 
     if (p.openFunds) {
       const flag = document.createElement('div');
@@ -347,7 +358,7 @@ async function renderPeriods(view) {
           preset: { destination, amount: p.remaining },
         });
       });
-      card.append(move);
+      actions.append(move);
     }
 
     const toggle = document.createElement('button');
@@ -358,7 +369,8 @@ async function renderPeriods(view) {
       if (expandedPeriods.has(p.index)) { expandedPeriods.delete(p.index); } else { expandedPeriods.add(p.index); }
       void refresh();
     });
-    card.append(toggle);
+    actions.append(toggle);
+    card.append(actions);
 
     if (expandedPeriods.has(p.index)) {
       const breakdown = document.createElement('div');
@@ -383,7 +395,13 @@ async function renderPeriods(view) {
         const item = document.createElement('button');
         item.type = 'button';
         item.className = 'btn ghost expense-item';
-        item.textContent = `${formatMoney(activityTotal(a.allocations))} ${a.description}`.trim();
+        const desc = document.createElement('span');
+        desc.className = 'expense-desc';
+        desc.textContent = a.description || (a.destination.type === 'spent' ? 'Expense' : 'Transfer');
+        const amt = document.createElement('span');
+        amt.className = 'expense-amount';
+        amt.textContent = formatMoney(activityTotal(a.allocations));
+        item.append(desc, amt);
         item.addEventListener('click', () => {
           if (lastView) { void openActivityEdit({ monthKey: /** @type {string} */ (selectedMonthKey), activity: a }); }
         });
@@ -420,6 +438,12 @@ async function openMonthSetup(monthKey) {
   $.html($.id('monthSetupTitle')).textContent = `Set up ${monthLabel(monthKey)}`;
   const amount = $.input($.id('monthSetupAmount'));
   amount.value = prev ? (prev.available / 100).toFixed(2) : '';
+
+  const intro = $.html($.id('monthSetupIntro'));
+  intro.textContent = isFirst
+    ? 'Welcome to Spend. Enter what you have to work with this month, or import a backup from Settings.'
+    : '';
+  intro.classList.toggle('hidden', !isFirst);
 
   const copyField = $.html($.id('monthSetupCopyField'));
   const copy = $.input($.id('monthSetupCopy'));
@@ -501,10 +525,33 @@ export function setupMonth() {
   setupActivity(async () => { await refresh(); });
 }
 
+/**
+ * Renders a friendly empty state on the Month screen when no month exists yet, so the
+ * screen behind the setup sheet is not blank and the bottom nav (e.g. Settings → import)
+ * stays reachable if the sheet is dismissed.
+ */
+function renderEmptyMonth() {
+  selectedMonthKey = null;
+  $.html($.id('monthTitle')).textContent = 'Spend';
+  const card = $.html($.id('statusCard'));
+  card.innerHTML = '';
+  const msg = document.createElement('p');
+  msg.className = 'empty';
+  msg.textContent = 'No month set up yet. Set one up to start, or import a backup from Settings.';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn primary';
+  btn.textContent = 'Set up this month';
+  btn.addEventListener('click', () => { void openMonthSetup($.isoToday().slice(0, 7)); });
+  card.append(msg, btn);
+  $.html($.id('periods')).innerHTML = '';
+}
+
 /** Pick the initial month: current if it exists, else latest, else prompt setup. */
 export async function openInitialMonth() {
   const months = await Months.list();
   if (months.length === 0) {
+    renderEmptyMonth();
     await openMonthSetup($.isoToday().slice(0, 7));
     return;
   }

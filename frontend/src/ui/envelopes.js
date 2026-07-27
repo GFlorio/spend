@@ -28,7 +28,7 @@ export async function renderEnvelopes() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn envelope-row';
-    const sign = e.balance < 0 ? 'negative' : e.balance === 0 ? 'zero' : 'positive';
+    const sign = e.balance < 0 ? 'negative' : 'neutral';
     const name = document.createElement('span');
     name.className = 'envelope-name';
     name.textContent = e.name;
