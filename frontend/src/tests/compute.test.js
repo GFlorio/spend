@@ -92,11 +92,37 @@ describe('computeMonth — whole-month envelope funding (TRX-6)', () => {
 });
 
 describe('computeMonth — open funds (PER-8)', () => {
-  test('past month: every positive period is completed and open', () => {
-    const view = computeMonth({ ...base, monthKey: '2026-05', todayKey: '2026-07-10', available: 300000 });
+  // A clearly-past month: every period is completed regardless of day.
+  const past = { ...base, monthKey: '2026-05', todayKey: '2026-07-10' };
+
+  test('untouched completed periods do NOT show open funds', () => {
+    // A brand-new past month with no activity: allocations sit untouched, so nothing
+    // is "leftover to assign" and no period should be flagged.
+    const view = computeMonth(past);
     expect(view.periods.every((p) => p.completed)).toBe(true);
+    expect(view.periods.some((p) => p.openFunds)).toBe(false);
+    expect(view.hasOpenFunds).toBe(false);
+  });
+
+  test('an expense flags open funds only on its own completed period', () => {
+    const view = computeMonth({ ...past, activities: [expense(1, 5000)] });
+    expect(view.periods[1].openFunds).toBe(true); // spent from -> touched, still positive
+    expect(view.periods[0].openFunds).toBe(false); // untouched neighbour stays quiet
     expect(view.hasOpenFunds).toBe(true);
   });
+
+  test('a transfer into an otherwise-untouched period flags it as open funds', () => {
+    const view = computeMonth({
+      ...past,
+      activities: [{
+        destination: { type: 'period', periodIndex: 3 },
+        allocations: [{ source: { type: 'period', periodIndex: 0 }, amount: 5000 }],
+      }],
+    });
+    expect(view.periods[3].openFunds).toBe(true); // received a transfer -> touched
+    expect(view.periods[2].openFunds).toBe(false); // still untouched
+  });
+
   test('current month: only periods that have ended are completed', () => {
     const view = computeMonth({ ...base, monthKey: '2026-07', todayKey: '2026-07-10' });
     // day 10 -> periods ending before day 10 are completed (1-7 done; 8-14 not yet)

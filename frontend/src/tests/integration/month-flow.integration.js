@@ -97,13 +97,16 @@ describe('whole-system — envelopes, transfers, carry (invariants)', () => {
     expect(balances[0].balance).toBe(31000);
   });
 
-  test('open funds appear on completed positive periods of a past month', async () => {
+  test('open funds appear only on completed periods with activity', async () => {
     await Months.create({ monthKey: '2026-05', available: 300000 });
+    await addExpense('2026-05', 1, 5000); // touches period 1 only
     const view = computeMonth({
       monthKey: '2026-05', available: 300000, bills: [],
       activities: await Activities.listForMonth('2026-05'), todayKey: '2026-07-15',
     });
-    expect(view.hasOpenFunds).toBe(true);
     expect(view.periods.every((p) => p.completed)).toBe(true);
+    expect(view.periods[1].openFunds).toBe(true); // touched, still positive
+    expect(view.periods[0].openFunds).toBe(false); // untouched
+    expect(view.hasOpenFunds).toBe(true);
   });
 });

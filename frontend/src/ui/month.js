@@ -111,20 +111,26 @@ function renderStatus(view, bills) {
   hero.className = 'hero';
   hero.textContent = `${formatMoney(view.safeToSpend)} available`;
 
-  const progress = document.createElement('div');
-  progress.className = 'bill-progress';
-  progress.textContent = `Bills: ${view.paidCount} of ${view.billCount} paid · ${formatMoney(view.billsReserved)} reserved`;
+  const hasBills = view.billCount > 0;
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'btn ghost small';
-  toggle.textContent = statusExpanded ? 'Hide details' : 'Show bills';
+  toggle.textContent = statusExpanded ? 'Hide details' : hasBills ? 'Show bills' : 'Add a bill';
   toggle.addEventListener('click', () => {
     statusExpanded = !statusExpanded;
     void refresh();
   });
 
-  card.append(hero, progress, toggle);
+  card.append(hero);
+  // With no bills, the "0 of 0 paid" line is noise; the toggle invites adding one instead.
+  if (hasBills) {
+    const progress = document.createElement('div');
+    progress.className = 'bill-progress';
+    progress.textContent = `Bills: ${view.paidCount} of ${view.billCount} paid · ${formatMoney(view.billsReserved)} reserved`;
+    card.append(progress);
+  }
+  card.append(toggle);
   if (statusExpanded) { card.append(renderBillList(bills), renderAmountEditor(view)); }
 }
 

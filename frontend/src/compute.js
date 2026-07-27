@@ -8,7 +8,7 @@ import { activityTotal } from './split.js';
  * @typedef {import('./data-activities.js').Allocation} Allocation
  * @typedef {{ paid:boolean, actual:number|null, expected:number }} BillInput
  * @typedef {{ destination:Destination, allocations:Allocation[] }} ActivityInput
- * @typedef {Period & { allocation:number, carryIn:number, transferIn:number, out:number, wholeMonthDebit:number, spent:number, remaining:number, completed:boolean, openFunds:boolean }} PeriodView
+ * @typedef {Period & { allocation:number, carryIn:number, transferIn:number, out:number, wholeMonthDebit:number, spent:number, remaining:number, completed:boolean, touched:boolean, openFunds:boolean }} PeriodView
  * @typedef {{ available:number, billsReserved:number, paidCount:number, billCount:number, spendingPool:number, safeToSpend:number, hasOpenFunds:boolean, periods:PeriodView[] }} MonthView
  * @typedef {import('./data-activities.js').Activity} Activity
  * @typedef {import('./data-envelopes.js').Envelope} Envelope
@@ -87,7 +87,11 @@ export function computeMonth({ monthKey, available, bills, activities, todayKey 
     const thisCarryIn = carryIn;
     carryIn = Math.min(0, remaining);
     const completed = isCompleted(p, monthKey, todayKey);
-    const openFunds = completed && remaining > 0;
+    // A period is "touched" once any activity draws from it, transfers into it, or
+    // debits it (whole-month funding). An untouched allocation is not "leftover to
+    // assign", so it should not surface as open funds on a brand-new month.
+    const touched = out[i] > 0 || transferIn[i] > 0 || wholeMonthDebit[i] > 0;
+    const openFunds = completed && remaining > 0 && touched;
     if (openFunds) { hasOpenFunds = true; }
     return {
       ...p,
@@ -99,6 +103,7 @@ export function computeMonth({ monthKey, available, bills, activities, todayKey 
       spent: spent[i],
       remaining,
       completed,
+      touched,
       openFunds,
     };
   });

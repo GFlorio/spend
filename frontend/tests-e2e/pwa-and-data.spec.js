@@ -37,10 +37,18 @@ test('export, reset, then re-import restores the dataset', async ({ page }) => {
 });
 
 test('the month selector marks a past month with open funds', async ({ page }) => {
-  // Seed a clearly-past month (all periods completed) with an unspent pool.
+  // Seed a clearly-past month (all periods completed) with an expense that leaves its
+  // period positive — a completed period with activity is what surfaces open funds.
   await page.evaluate(async () => {
-    await /** @type {any} */ (window).__testDB.put('months', {
+    const db = /** @type {any} */ (window).__testDB;
+    await db.put('months', {
       id: 'month:2000-01', monthKey: '2000-01', available: 300000, createdAt: 1, updatedAt: 1,
+    });
+    await db.put('activities', {
+      id: 'act:2000-01-seed', monthKey: '2000-01', periodIndex: 0,
+      destination: { type: 'spent' },
+      allocations: [{ source: { type: 'period', periodIndex: 0 }, amount: 1000 }],
+      description: '', createdAt: 2, updatedAt: 2,
     });
   });
   await page.reload();
