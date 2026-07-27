@@ -1,5 +1,36 @@
 import { describe, expect, test } from 'vitest';
-import { redistributeEqual, removeProportional, activityTotal } from '../split.js';
+import { redistributeEqual, removeProportional, activityTotal, setBoundary } from '../split.js';
+
+describe('setBoundary (drag a segment divider)', () => {
+  test('moves money between the two adjacent segments, preserving the total', () => {
+    // Divider 0 sits between segment 0 and 1; target cumulative-through-0 = 7000.
+    expect(setBoundary([5000, 5000], 0, 7000)).toEqual([7000, 3000]);
+  });
+
+  test('a middle divider leaves other segments untouched', () => {
+    // Divider 1 is between segments 1 and 2; prefix (seg 0) = 2000, pair = 8000.
+    expect(setBoundary([2000, 3000, 5000], 1, 6000)).toEqual([2000, 4000, 4000]);
+  });
+
+  test('clamps at the low edge (segment cannot go negative)', () => {
+    expect(setBoundary([2000, 3000, 5000], 1, 1000)).toEqual([2000, 0, 8000]);
+  });
+
+  test('clamps at the high edge (cannot exceed the adjacent pair)', () => {
+    expect(setBoundary([2000, 3000, 5000], 1, 99999)).toEqual([2000, 8000, 0]);
+  });
+
+  test('does not mutate the input array', () => {
+    const input = [5000, 5000];
+    setBoundary(input, 0, 7000);
+    expect(input).toEqual([5000, 5000]);
+  });
+
+  test('throws when the divider index is out of range', () => {
+    expect(() => setBoundary([100, 200], 1, 50)).toThrow(/out of range/);
+    expect(() => setBoundary([100, 200], -1, 50)).toThrow(/out of range/);
+  });
+});
 
 describe('redistributeEqual', () => {
   test('splits evenly and sums to total', () => {

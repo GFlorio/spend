@@ -1,7 +1,7 @@
 import { Activities, Envelopes } from '../data.js';
 import { formatMoney, parseMoney } from '../money.js';
 import { periodsForMonthKey } from '../periods.js';
-import { activityTotal, redistributeEqual, removeProportional } from '../split.js';
+import { activityTotal, redistributeEqual, removeProportional, setBoundary } from '../split.js';
 import * as $ from '../utils.js';
 import { inputSheet, pickList } from './dialogs.js';
 import { describeDestination, describeSource } from './labels.js';
@@ -143,15 +143,97 @@ function renderSources() {
   });
 }
 
+/**
+ * Renders the split-allocation bar: a segmented track plus a draggable handle at each
+ * internal divider. Hidden when there is a single source (nothing to split).
+ */
 function renderBar() {
   const bar = $.html($.id('activityBar'));
   bar.innerHTML = '';
-  const total = state.total || 1;
+  const multi = state.rows.length > 1 && state.total > 0;
+  bar.classList.toggle('hidden', !multi);
+  if (!multi) { return; }
+  const total = state.total;
+
+  const track = document.createElement('div');
+  track.className = 'alloc-track';
   state.rows.forEach((row, i) => {
     const seg = document.createElement('div');
     seg.className = `alloc-seg alloc-seg-${i % 4}`;
     seg.style.width = `${Math.max(0, (row.amount / total) * 100)}%`;
-    bar.append(seg);
+    track.append(seg);
+  });
+  bar.append(track);
+
+  let cum = 0;
+  state.rows.forEach((row, i) => {
+    cum += row.amount;
+    if (i >= state.rows.length - 1) { return; } // no handle past the last segment
+    const handle = document.createElement('button');
+    handle.type = 'button';
+    handle.className = 'alloc-handle';
+    handle.style.left = `${(cum / total) * 100}%`;
+    handle.setAttribute('role', 'slider');
+    handle.setAttribute('aria-label', `Split between ${describeSource(state.rows[i].source, envName, periods())} and ${describeSource(state.rows[i + 1].source, envName, periods())}`);
+    handle.setAttribute('aria-valuemin', '0');
+    handle.setAttribute('aria-valuemax', String(total));
+    handle.setAttribute('aria-valuenow', String(cum));
+    attachHandle(handle, i);
+    bar.append(handle);
+  });
+}
+
+/**
+ * Live-updates segment widths, handle positions, source inputs, and the projection during
+ * a drag or key press, without rebuilding the DOM (which would drop focus / pointer capture).
+ */
+function syncAllocUI() {
+  const bar = $.html($.id('activityBar'));
+  const total = state.total || 1;
+  const segs = $.arr('.alloc-seg', bar);
+  const handles = $.arr('.alloc-handle', bar);
+  const inputs = $.arr('.source-amount', $.html($.id('activitySources')));
+  let cum = 0;
+  state.rows.forEach((row, i) => {
+    if (segs[i]) { $.html(segs[i]).style.width = `${Math.max(0, (row.amount / total) * 100)}%`; }
+    if (inputs[i] instanceof HTMLInputElement) { inputs[i].value = (row.amount / 100).toFixed(2); }
+    cum += row.amount;
+    const handle = handles[i];
+    if (handle) { $.html(handle).style.left = `${(cum / total) * 100}%`; handle.setAttribute('aria-valuenow', String(cum)); }
+  });
+  renderProjection();
+}
+
+/**
+ * Wires pointer-drag and keyboard control for the divider at index `i`. Dragging or arrowing
+ * moves money between sources `i` and `i+1` via setBoundary; a full re-render runs on release.
+ * @param {HTMLButtonElement} handle @param {number} i
+ */
+function attachHandle(handle, i) {
+  const bar = $.html($.id('activityBar'));
+  /** @param {number} cumTarget */
+  const applyTo = (cumTarget) => {
+    const amounts = setBoundary(state.rows.map((r) => r.amount), i, cumTarget);
+    state.rows.forEach((r, k) => { r.amount = amounts[k]; });
+    syncAllocUI();
+  };
+  handle.addEventListener('pointerdown', (e) => { e.preventDefault(); handle.setPointerCapture(e.pointerId); });
+  handle.addEventListener('pointermove', (e) => {
+    if (!handle.hasPointerCapture(e.pointerId)) { return; }
+    const rect = bar.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    applyTo(Math.round(frac * state.total));
+  });
+  handle.addEventListener('pointerup', (e) => { handle.releasePointerCapture(e.pointerId); render(); });
+  handle.addEventListener('keydown', (e) => {
+    const step = Math.max(1, Math.round(state.total / 100));
+    const delta = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? step
+      : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -step : 0;
+    if (!delta) { return; }
+    e.preventDefault();
+    let cum = 0;
+    for (let k = 0; k <= i; k++) { cum += state.rows[k].amount; }
+    applyTo(cum + delta);
   });
 }
 

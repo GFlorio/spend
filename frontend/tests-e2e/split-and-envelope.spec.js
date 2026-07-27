@@ -44,3 +44,33 @@ test('add a second funding source through the themed picker', async ({ page }) =
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.locator('#statusCard .hero')).toContainText('$2,940.00 available');
 });
+
+test('rebalance a split by dragging and arrowing the allocation bar', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Available this month').fill('3000');
+  await page.getByRole('button', { name: 'Create month' }).click();
+
+  await page.locator('.period-card').first().getByRole('button', { name: '+ Add' }).click();
+  await page.getByLabel('Amount', { exact: true }).fill('60');
+  await page.getByRole('button', { name: '+ Add source' }).click();
+  await page.getByRole('button', { name: 'Whole month' }).click();
+
+  // Two sources start even (30/30); the bar and one divider handle appear.
+  const first = page.locator('#activitySources .source-amount').first();
+  const handle = page.locator('.alloc-handle');
+  await expect(handle).toBeVisible();
+  await expect(first).toHaveValue('30.00');
+
+  // Drag the divider to ~80% → first source becomes $48.00.
+  const box = /** @type {any} */ (await page.locator('#activityBar').boundingBox());
+  await handle.hover();
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect(first).toHaveValue('48.00');
+
+  // Arrow key nudges the boundary down by one step ($0.60 of $60).
+  await handle.focus();
+  await handle.press('ArrowLeft');
+  await expect(first).toHaveValue('47.40');
+});

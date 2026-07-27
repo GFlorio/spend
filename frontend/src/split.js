@@ -36,6 +36,29 @@ export function removeProportional(amounts, indexToRemove, total) {
 }
 
 /**
+ * Moves money across the divider between segments `index` and `index+1` so their combined
+ * amount is unchanged and the overall total is preserved; all other segments are untouched.
+ * `cumTarget` is the desired cumulative sum through segment `index` (i.e. the dragged
+ * boundary position expressed in minor units), clamped to the adjacent pair.
+ * @param {number[]} amounts current per-source amounts (length >= 2)
+ * @param {number} index divider index in [0, amounts.length - 2]
+ * @param {number} cumTarget desired cumulative total through segment `index`
+ * @returns {number[]} a new amounts array
+ */
+export function setBoundary(amounts, index, cumTarget) {
+  if (!Number.isInteger(index) || index < 0 || index >= amounts.length - 1) {
+    throw new Error(`setBoundary: divider index ${index} out of range [0,${amounts.length - 1})`);
+  }
+  let prefix = 0;
+  for (let i = 0; i < index; i++) { prefix += amounts[i]; }
+  const pairTotal = amounts[index] + amounts[index + 1];
+  const next = amounts.slice();
+  next[index] = Math.max(0, Math.min(cumTarget - prefix, pairTotal));
+  next[index + 1] = pairTotal - next[index];
+  return next;
+}
+
+/**
  * Total of an activity's allocations, in integer minor units.
  * @param {Allocation[]} allocations
  * @returns {number}

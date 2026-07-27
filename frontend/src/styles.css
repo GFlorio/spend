@@ -87,8 +87,12 @@ dialog::backdrop { background: rgba(0,0,0,0.4); }
 .source-name { flex: 1; }
 .source-amount { width: 8rem; min-height: 44px; }
 .source-remove { min-width: 44px; }
-.alloc-bar { display: flex; height: 10px; border-radius: 10px; overflow: hidden; margin: var(--s3) 0; background: color-mix(in srgb, Canvas 85%, GrayText); }
+.alloc-bar { position: relative; height: 12px; margin: var(--s5) 0; }
+.alloc-track { position: absolute; inset: 0; display: flex; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, Canvas 85%, GrayText); }
 .alloc-seg { height: 100%; }
+.alloc-handle { position: absolute; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; padding: 0; border: 2px solid var(--brand); border-radius: 50%; background: var(--surface); cursor: ew-resize; touch-action: none; }
+.alloc-handle::before { content: ""; position: absolute; inset: -12px; } /* ~44px touch target */
+.alloc-handle:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .alloc-seg-0 { background: var(--brand); }
 .alloc-seg-1 { background: var(--positive); }
 .alloc-seg-2 { background: var(--warning); }
