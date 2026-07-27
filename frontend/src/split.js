@@ -1,3 +1,5 @@
+/** @typedef {import('./data-activities.js').Allocation} Allocation */
+
 /**
  * Splits an integer total into `count` near-equal parts; the last part absorbs the residual.
  * @param {number} total integer minor units (>= 0)
@@ -32,3 +34,10 @@ export function removeProportional(amounts, indexToRemove, total) {
   parts[parts.length - 1] += total - parts.reduce((sum, a) => sum + a, 0);
   return parts;
 }
+
+/**
+ * Total of an activity's allocations, in integer minor units.
+ * @param {Allocation[]} allocations
+ * @returns {number}
+ */
+export const activityTotal = (allocations) => allocations.reduce((sum, a) => sum + a.amount, 0);
