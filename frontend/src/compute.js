@@ -1,4 +1,5 @@
 import { allocate, periodsForMonthKey } from './periods.js';
+import { activityTotal } from './split.js';
 
 /**
  * @typedef {import('./periods.js').Period} Period
@@ -6,7 +7,7 @@ import { allocate, periodsForMonthKey } from './periods.js';
  * @typedef {import('./data-activities.js').Source} Source
  * @typedef {import('./data-activities.js').Allocation} Allocation
  * @typedef {{ paid:boolean, actual:number|null, expected:number }} BillInput
- * @typedef {{ destination:Destination, amount:number, allocations:Allocation[] }} ActivityInput
+ * @typedef {{ destination:Destination, allocations:Allocation[] }} ActivityInput
  * @typedef {Period & { allocation:number, carryIn:number, transferIn:number, out:number, wholeMonthDebit:number, spent:number, remaining:number, completed:boolean, openFunds:boolean }} PeriodView
  * @typedef {{ available:number, billsReserved:number, paidCount:number, billCount:number, spendingPool:number, safeToSpend:number, hasOpenFunds:boolean, periods:PeriodView[] }} MonthView
  * @typedef {import('./data-activities.js').Activity} Activity
@@ -56,7 +57,7 @@ export function computeMonth({ monthKey, available, bills, activities, todayKey 
   for (const a of activities) {
     if (a.destination.type === 'period') {
       assertPeriodIndex(a.destination.periodIndex, n, 'destination');
-      transferIn[a.destination.periodIndex] += a.amount;
+      transferIn[a.destination.periodIndex] += activityTotal(a.allocations);
     }
     for (const alloc of a.allocations) {
       const source = alloc.source;
@@ -126,7 +127,7 @@ export function computeEnvelopes(envelopes, allActivities) {
     const dest = a.destination;
     if (dest.type === 'envelope') {
       const cur = balance.get(dest.envelopeId);
-      if (cur !== undefined) { balance.set(dest.envelopeId, cur + a.amount); }
+      if (cur !== undefined) { balance.set(dest.envelopeId, cur + activityTotal(a.allocations)); }
     }
     for (const alloc of a.allocations) {
       if (alloc.source.type === 'envelope') {
@@ -149,7 +150,7 @@ export function computeEnvelopeHistory(envelopeId, allActivities) {
   for (const a of allActivities) {
     if (a.destination.type === 'envelope' && a.destination.envelopeId === envelopeId) {
       rows.push({
-        activityId: a.id, direction: 'in', amount: a.amount,
+        activityId: a.id, direction: 'in', amount: activityTotal(a.allocations),
         counterparty: a.allocations.map((al) => al.source),
         monthKey: a.monthKey, periodIndex: a.periodIndex, description: a.description,
       });

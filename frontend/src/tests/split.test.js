@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { redistributeEqual, removeProportional } from '../split.js';
+import { redistributeEqual, removeProportional, activityTotal } from '../split.js';
 
 describe('redistributeEqual', () => {
   test('splits evenly and sums to total', () => {
@@ -37,5 +37,20 @@ describe('removeProportional — index guard + residual (Slice 2 deferral)', () 
   });
   test('assigns the flooring residual to the last kept entry', () => {
     expect(removeProportional([5, 1, 1, 1], 0, 100)).toEqual([33, 33, 34]);
+  });
+});
+
+describe('activityTotal (CAL-1: derive the total from allocations)', () => {
+  test('a single source mirrors that source amount', () => {
+    expect(activityTotal([{ source: { type: 'period', periodIndex: 0 }, amount: 5000 }])).toBe(5000);
+  });
+  test('multiple sources sum exactly', () => {
+    expect(activityTotal([
+      { source: { type: 'period', periodIndex: 0 }, amount: 6000 },
+      { source: { type: 'envelope', envelopeId: 'env:1' }, amount: 4000 },
+    ])).toBe(10000);
+  });
+  test('empty allocations total zero', () => {
+    expect(activityTotal([])).toBe(0);
   });
 });

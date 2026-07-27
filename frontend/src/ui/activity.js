@@ -1,7 +1,7 @@
 import { Activities, Envelopes } from '../data.js';
 import { formatMoney, parseMoney } from '../money.js';
 import { periodsForMonthKey } from '../periods.js';
-import { redistributeEqual, removeProportional } from '../split.js';
+import { activityTotal, redistributeEqual, removeProportional } from '../split.js';
 import * as $ from '../utils.js';
 import { describeDestination, describeSource } from './labels.js';
 
@@ -166,7 +166,7 @@ function originalContribution(envelopeId) {
   if (!original) { return 0; }
   let contribution = 0;
   if (original.destination.type === 'envelope' && original.destination.envelopeId === envelopeId) {
-    contribution += original.amount;
+    contribution += activityTotal(original.allocations);
   }
   for (const alloc of original.allocations) {
     if (alloc.source.type === 'envelope' && alloc.source.envelopeId === envelopeId) {
@@ -301,9 +301,9 @@ async function save() {
   const description = $.input($.id('activityDescription')).value.trim();
 
   if (state.mode === 'edit' && state.editingId) {
-    await Activities.update(state.editingId, { destination, amount: state.total, description, allocations });
+    await Activities.update(state.editingId, { destination, description, allocations });
   } else {
-    await Activities.create({ monthKey: state.monthKey, periodIndex: state.periodIndex, destination, amount: state.total, description, allocations });
+    await Activities.create({ monthKey: state.monthKey, periodIndex: state.periodIndex, destination, description, allocations });
   }
   $.dialog($.id('activityDialog')).close();
   await onSaved();
@@ -341,7 +341,7 @@ export async function openActivityEdit({ monthKey, activity }) {
   state.pending = new Map();
   state.originalActivity = activity;
   state.destination = activity.destination;
-  state.total = activity.amount;
+  state.total = activityTotal(activity.allocations);
   state.rows = activity.allocations.map((a) => ({ source: a.source, amount: a.amount }));
   await loadEnvelopes();
   $.input($.id('activityAmount')).value = (state.total / 100).toFixed(2);

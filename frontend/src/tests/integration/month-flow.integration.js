@@ -55,11 +55,11 @@ describe('whole-system — envelopes, transfers, carry (invariants)', () => {
     const groceries = await Envelopes.create({ name: 'Groceries' });
     // fund the envelope from period 2, then spend split across period 2 + envelope
     await Activities.create({
-      monthKey: '2026-07', periodIndex: 2, destination: { type: 'envelope', envelopeId: groceries.id }, amount: 20000,
+      monthKey: '2026-07', periodIndex: 2, destination: { type: 'envelope', envelopeId: groceries.id },
       allocations: [{ source: { type: 'period', periodIndex: 2 }, amount: 20000 }],
     });
     await Activities.create({
-      monthKey: '2026-07', periodIndex: 2, destination: { type: 'spent' }, amount: 15000,
+      monthKey: '2026-07', periodIndex: 2, destination: { type: 'spent' },
       allocations: [
         { source: { type: 'period', periodIndex: 2 }, amount: 9000 },
         { source: { type: 'envelope', envelopeId: groceries.id }, amount: 6000 },
@@ -75,7 +75,7 @@ describe('whole-system — envelopes, transfers, carry (invariants)', () => {
   test('period-to-period positive move leaves the month total unchanged', async () => {
     await Months.create({ monthKey: '2026-07', available: 300000 });
     await Activities.create({
-      monthKey: '2026-07', periodIndex: 0, destination: { type: 'period', periodIndex: 1 }, amount: 10000,
+      monthKey: '2026-07', periodIndex: 0, destination: { type: 'period', periodIndex: 1 },
       allocations: [{ source: { type: 'period', periodIndex: 0 }, amount: 10000 }],
     });
     const view = await viewFor('2026-07');
@@ -87,7 +87,7 @@ describe('whole-system — envelopes, transfers, carry (invariants)', () => {
     await Months.create({ monthKey: '2026-07', available: 300000 });
     const travel = await Envelopes.create({ name: 'Travel' });
     await Activities.create({
-      monthKey: '2026-07', periodIndex: 0, destination: { type: 'envelope', envelopeId: travel.id }, amount: 31000,
+      monthKey: '2026-07', periodIndex: 0, destination: { type: 'envelope', envelopeId: travel.id },
       allocations: [{ source: { type: 'wholeMonth' }, amount: 31000 }],
     });
     const view = await viewFor('2026-07');

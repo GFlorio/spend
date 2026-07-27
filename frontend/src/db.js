@@ -38,10 +38,18 @@ export function validateDump(dump) {
     if (typeof act.monthKey !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(act.monthKey)) {
       throw new Error(`Import: activity ${act.id} has an invalid monthKey ${act.monthKey}`);
     }
+    if (!Array.isArray(act.allocations) || act.allocations.length === 0) {
+      throw new Error(`Import: activity ${act.id} must have a non-empty allocations array`);
+    }
+    for (const alloc of act.allocations) {
+      if (!alloc || !Number.isInteger(alloc.amount) || alloc.amount < 0) {
+        throw new Error(`Import: activity ${act.id} has an invalid allocation amount`);
+      }
+    }
     const n = periodsForMonthKey(act.monthKey).length;
     const indices = [act.periodIndex];
     if (act.destination?.type === 'period') { indices.push(act.destination.periodIndex); }
-    for (const alloc of act.allocations ?? []) {
+    for (const alloc of act.allocations) {
       if (alloc?.source?.type === 'period') { indices.push(alloc.source.periodIndex); }
     }
     for (const idx of indices) {

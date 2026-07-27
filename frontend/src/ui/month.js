@@ -1,6 +1,7 @@
 import { computeMonth } from '../compute.js';
 import { Activities, Bills, Months } from '../data.js';
 import { formatMoney, parseMoney } from '../money.js';
+import { activityTotal } from '../split.js';
 import * as $ from '../utils.js';
 import { openActivityCreate, openActivityEdit, setupActivity } from './activity.js';
 
@@ -348,7 +349,7 @@ async function renderPeriods(view) {
         const item = document.createElement('button');
         item.type = 'button';
         item.className = 'btn ghost expense-item';
-        item.textContent = `${formatMoney(a.amount)} ${a.description}`.trim();
+        item.textContent = `${formatMoney(activityTotal(a.allocations))} ${a.description}`.trim();
         item.addEventListener('click', () => {
           if (lastView) { void openActivityEdit({ monthKey: /** @type {string} */ (selectedMonthKey), activity: a }); }
         });
