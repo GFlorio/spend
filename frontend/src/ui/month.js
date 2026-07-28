@@ -45,6 +45,9 @@ function chooseScope(title) {
   });
 }
 
+/** Duotone "inspect details" glyph (Phosphor list-magnifying-glass); inherits button color. */
+const DETAILS_ICON = `<svg class="icon" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,144a32,32,0,1,1-32-32A32,32,0,0,1,216,144Z" opacity="0.2"></path><path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,72h72a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm88,48H40a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16Zm109.66,13.66a8,8,0,0,1-11.32,0L206,177.36A40,40,0,1,1,217.36,166l20.3,20.3A8,8,0,0,1,237.66,197.66ZM184,168a24,24,0,1,0-24-24A24,24,0,0,0,184,168Z"></path></svg>`;
+
 /** @type {string|null} */
 let selectedMonthKey = null;
 /** @type {import('../compute.js').MonthView|null} */
@@ -99,8 +102,9 @@ async function refresh() {
 let statusExpanded = false;
 
 /**
- * Renders the collapsible monthly status card: collapsed shows the safe-to-spend hero,
- * paid count, and reserved total; expanded also reveals the bill list and amount editor.
+ * Renders the collapsible monthly status card: collapsed shows the safe-to-spend hero
+ * and an unpaid-bill count (only when some are unpaid); expanded also reveals the bill
+ * list and amount editor.
  * @param {import('../compute.js').MonthView} view
  * @param {import('../data.js').BillView[]} bills
  */
@@ -110,9 +114,10 @@ function renderStatus(view, bills) {
 
   const hero = document.createElement('div');
   hero.className = 'hero';
-  hero.textContent = `${formatMoney(view.safeToSpend)} available`;
+  hero.textContent = formatMoney(view.safeToSpend);
 
   const hasBills = view.billCount > 0;
+  const unpaid = view.billCount - view.paidCount;
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
@@ -124,11 +129,11 @@ function renderStatus(view, bills) {
   });
 
   card.append(hero);
-  // With no bills, the "0 of 0 paid" line is noise; the toggle invites adding one instead.
-  if (hasBills) {
+  // Only surface bills when action is needed: the unpaid count. All paid (or none) = silence.
+  if (unpaid > 0) {
     const progress = document.createElement('div');
     progress.className = 'bill-progress';
-    progress.textContent = `Bills: ${view.paidCount} of ${view.billCount} paid · ${formatMoney(view.billsReserved)} reserved`;
+    progress.textContent = `${unpaid} bill${unpaid === 1 ? '' : 's'} unpaid`;
     card.append(progress);
   }
   card.append(toggle);
@@ -290,7 +295,8 @@ function currentPeriodIndex(view) {
   return p ? p.index : -1;
 }
 
-/** Renders period cards: date range, remaining/allocated, current-period emphasis, and expense list. @param {import('../compute.js').MonthView} view */
+/** Renders period cards: a right-floating details toggle, a centered range + remaining line, and (when
+ * expanded) the funding breakdown and expense list. @param {import('../compute.js').MonthView} view */
 async function renderPeriods(view) {
   const container = $.html($.id('periods'));
   container.innerHTML = '';
@@ -298,10 +304,30 @@ async function renderPeriods(view) {
   const current = currentPeriodIndex(view);
 
   for (const p of view.periods) {
+    const expanded = expandedPeriods.has(p.index);
     const card = document.createElement('section');
-    card.className = `period-card${p.index === current ? ' current' : ''}`;
+    card.className = `period-card${p.index === current ? ' current' : ''}${expanded ? ' expanded' : ''}`;
 
-    const range = document.createElement('div');
+    // Details toggle is absolutely positioned at the card's right edge (see CSS).
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'btn ghost icon-btn details-toggle';
+    toggle.innerHTML = DETAILS_ICON;
+    toggle.setAttribute('aria-label', 'Details');
+    toggle.setAttribute('aria-expanded', String(expanded));
+    toggle.classList.toggle('active', expanded);
+    toggle.addEventListener('click', () => {
+      if (expandedPeriods.has(p.index)) { expandedPeriods.delete(p.index); } else { expandedPeriods.add(p.index); }
+      void refresh();
+    });
+
+    const body = document.createElement('div');
+    body.className = 'period-body';
+
+    // Range and remaining share one centered line.
+    const head = document.createElement('div');
+    head.className = 'period-head';
+    const range = document.createElement('span');
     range.className = 'range';
     const rangeText = `${p.startDay}–${p.endDay}`;
     range.textContent = rangeText;
@@ -313,13 +339,10 @@ async function renderPeriods(view) {
     }
     card.setAttribute('aria-label', `Period ${rangeText}${p.index === current ? ' (current)' : ''}`);
 
-    const remaining = document.createElement('div');
+    const remaining = document.createElement('span');
     remaining.className = `remaining${p.remaining < 0 ? ' negative' : ''}`;
-    remaining.textContent = `${formatMoney(p.remaining)} left of ${formatMoney(p.allocation)}`;
-
-    const secondary = document.createElement('div');
-    secondary.className = 'secondary';
-    secondary.textContent = `${formatMoney(p.spent)} of ${formatMoney(p.allocation)}`;
+    remaining.textContent = formatMoney(p.remaining);
+    head.append(range, remaining);
 
     const add = document.createElement('button');
     add.type = 'button';
@@ -327,19 +350,11 @@ async function renderPeriods(view) {
     add.textContent = '+ Add';
     add.addEventListener('click', () => openActivity(p.index));
 
-    card.append(range, remaining, secondary);
-
-    // One action row: primary Add, then Move leftover (secondary) and Details (ghost).
     const actions = document.createElement('div');
     actions.className = 'period-actions';
     actions.append(add);
 
     if (p.openFunds) {
-      const flag = document.createElement('div');
-      flag.className = 'open-funds';
-      flag.textContent = `Open funds: ${formatMoney(p.remaining)}`;
-      card.append(flag);
-
       const move = document.createElement('button');
       move.type = 'button';
       move.className = 'btn small move-leftover';
@@ -361,18 +376,10 @@ async function renderPeriods(view) {
       actions.append(move);
     }
 
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'btn ghost small';
-    toggle.textContent = expandedPeriods.has(p.index) ? 'Hide details' : 'Details';
-    toggle.addEventListener('click', () => {
-      if (expandedPeriods.has(p.index)) { expandedPeriods.delete(p.index); } else { expandedPeriods.add(p.index); }
-      void refresh();
-    });
-    actions.append(toggle);
-    card.append(actions);
+    body.append(head, actions);
 
-    if (expandedPeriods.has(p.index)) {
+    // Breakdown and expense list are detail: only shown when the period is expanded.
+    if (expanded) {
       const breakdown = document.createElement('div');
       breakdown.className = 'breakdown secondary';
       const rows = [
@@ -381,34 +388,35 @@ async function renderPeriods(view) {
         p.transferIn ? `Transfers in ${formatMoney(p.transferIn)}` : '',
         p.out ? `Out ${formatMoney(-p.out)}` : '',
         p.wholeMonthDebit ? `Whole-month funding ${formatMoney(-p.wholeMonthDebit)}` : '',
-        `Remaining ${formatMoney(p.remaining)}`,
       ].filter(Boolean);
       breakdown.innerHTML = rows.map((r) => `<div>${r}</div>`).join('');
-      card.append(breakdown);
+      body.append(breakdown);
+
+      const periodActivities = activities.filter((a) => a.periodIndex === p.index);
+      if (periodActivities.length) {
+        const list = document.createElement('div');
+        list.className = 'expense-list';
+        for (const a of periodActivities) {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'btn ghost expense-item';
+          const desc = document.createElement('span');
+          desc.className = 'expense-desc';
+          desc.textContent = a.description || (a.destination.type === 'spent' ? 'Expense' : 'Transfer');
+          const amt = document.createElement('span');
+          amt.className = 'expense-amount';
+          amt.textContent = formatMoney(activityTotal(a.allocations));
+          item.append(desc, amt);
+          item.addEventListener('click', () => {
+            if (lastView) { void openActivityEdit({ monthKey: /** @type {string} */ (selectedMonthKey), activity: a }); }
+          });
+          list.append(item);
+        }
+        body.append(list);
+      }
     }
 
-    const periodActivities = activities.filter((a) => a.periodIndex === p.index);
-    if (periodActivities.length) {
-      const list = document.createElement('div');
-      list.className = 'expense-list';
-      for (const a of periodActivities) {
-        const item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'btn ghost expense-item';
-        const desc = document.createElement('span');
-        desc.className = 'expense-desc';
-        desc.textContent = a.description || (a.destination.type === 'spent' ? 'Expense' : 'Transfer');
-        const amt = document.createElement('span');
-        amt.className = 'expense-amount';
-        amt.textContent = formatMoney(activityTotal(a.allocations));
-        item.append(desc, amt);
-        item.addEventListener('click', () => {
-          if (lastView) { void openActivityEdit({ monthKey: /** @type {string} */ (selectedMonthKey), activity: a }); }
-        });
-        list.append(item);
-      }
-      card.append(list);
-    }
+    card.append(toggle, body);
     container.append(card);
   }
 }

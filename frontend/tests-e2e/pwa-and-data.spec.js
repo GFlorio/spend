@@ -11,7 +11,7 @@ test('export, reset, then re-import restores the dataset', async ({ page }) => {
   // Create a month.
   await page.getByLabel('Available this month').fill('3000');
   await page.getByRole('button', { name: 'Create month' }).click();
-  await expect(page.locator('#statusCard .hero')).toContainText('$3,000.00 available');
+  await expect(page.locator('#statusCard .hero')).toContainText('$3,000.00');
 
   // Export a backup.
   await page.getByRole('button', { name: 'Settings' }).click();
@@ -35,7 +35,7 @@ test('export, reset, then re-import restores the dataset', async ({ page }) => {
   await page.getByRole('button', { name: 'Replace', exact: true }).click();
 
   // Import reloads the app; the month is restored.
-  await expect(page.locator('#statusCard .hero')).toContainText('$3,000.00 available');
+  await expect(page.locator('#statusCard .hero')).toContainText('$3,000.00');
 });
 
 test('the month selector marks a past month with open funds', async ({ page }) => {

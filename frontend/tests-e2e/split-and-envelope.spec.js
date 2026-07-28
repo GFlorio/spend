@@ -9,7 +9,7 @@ test('fund a new envelope from a period and see it on the Envelopes screen', asy
   await page.goto('/');
   await page.getByLabel('Available this month').fill('3000');
   await page.getByRole('button', { name: 'Create month' }).click();
-  await expect(page.locator('#statusCard .hero')).toContainText('$3,000.00 available');
+  await expect(page.locator('#statusCard .hero')).toContainText('$3,000.00');
 
   // Open the universal form from the first period, move money to a new envelope.
   await page.locator('.period-card').first().getByRole('button', { name: '+ Add' }).click();
@@ -47,7 +47,7 @@ test('add a second funding source through the themed picker', async ({ page }) =
   await expect(page.locator('#activitySources .source-row')).toHaveCount(2);
 
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.locator('#statusCard .hero')).toContainText('$2,940.00 available');
+  await expect(page.locator('#statusCard .hero')).toContainText('$2,940.00');
 });
 
 test('rebalance a split by dragging and arrowing the allocation bar', async ({ page }) => {

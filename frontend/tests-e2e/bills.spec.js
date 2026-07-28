@@ -9,7 +9,7 @@ test('add a bill through the themed input sheet', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('Available this month').fill('3000');
   await page.getByRole('button', { name: 'Create month' }).click();
-  await expect(page.locator('#statusCard .hero')).toContainText('$3,000.00 available');
+  await expect(page.locator('#statusCard .hero')).toContainText('$3,000.00');
 
   // Open the (empty) bill list, then add a bill via the themed sheet — no native prompt.
   await page.getByRole('button', { name: 'Add a bill' }).click();
@@ -18,7 +18,7 @@ test('add a bill through the themed input sheet', async ({ page }) => {
   await page.getByLabel('Expected amount').fill('1200');
   await page.getByRole('button', { name: 'Add bill', exact: true }).click();
 
-  await expect(page.locator('#statusCard')).toContainText('Bills: 0 of 1 paid');
+  await expect(page.locator('#statusCard')).toContainText('1 bill unpaid');
   const row = page.locator('.bill-row');
   await expect(row).toContainText('Rent');
   await expect(row).toContainText('$1,200.00');

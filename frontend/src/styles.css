@@ -29,12 +29,18 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .month-title { font-size: 1.25rem; font-weight: 700; background: none; border: none; color: var(--text); padding: var(--s2) 0; min-height: 44px; cursor: pointer; }
 
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--s4); margin-bottom: var(--s4); }
-.status-card .hero { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.02em; }
+.status-card .hero { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.02em; text-align: center; }
 .status-card .bill-progress { color: var(--muted); margin-top: var(--s1); }
 
 .periods { display: flex; flex-direction: column; gap: var(--s3); }
-.period-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--s3) var(--s4); }
+.period-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--s3) var(--s4); }
 .period-card.current { border-color: var(--brand); box-shadow: inset 3px 0 0 0 var(--brand); }
+/* Head centers on the whole card; the toggle is taken out of flow so it doesn't offset it. */
+.period-head { display: flex; justify-content: center; align-items: baseline; gap: var(--s3); }
+.details-toggle { position: absolute; top: 50%; right: var(--s3); transform: translateY(-50%); padding: var(--s2); }
+.period-card.expanded .details-toggle { top: var(--s3); transform: none; }
+.icon { width: 1.25rem; height: 1.25rem; display: block; }
+.details-toggle .icon { width: 1.75rem; height: 1.75rem; }
 .period-card .range { font-weight: 600; }
 .period-card.current .range { font-weight: 700; }
 .now-label { margin-left: var(--s2); padding: 1px var(--s2); font-size: 0.7rem; font-weight: 700; color: var(--brand); border: 1px solid var(--brand); border-radius: 999px; vertical-align: middle; }
@@ -47,6 +53,8 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
 .btn.ghost { border-color: transparent; background: none; }
 .btn.small { min-height: 36px; padding: 0 var(--s3); }
+.btn.icon-btn { display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
+.btn.icon-btn.active { color: var(--brand); }
 
 .bottom-nav { position: fixed; inset: auto 0 0 0; display: flex; gap: var(--s2); padding: var(--s2); background: var(--surface); border-top: 1px solid var(--border); }
 .tab { flex: 1; min-height: 44px; border: none; background: none; color: var(--muted); font: inherit; cursor: pointer; border-radius: var(--r-sm); }
@@ -110,8 +118,7 @@ dialog::backdrop { background: rgba(0,0,0,0.4); }
 .history-amount.out { color: var(--negative); }
 .history-context { grid-column: 1 / -1; font-size: 0.8rem; opacity: 0.7; }
 
-/* Period open funds + breakdown */
-.open-funds { color: var(--warning); font-size: 0.9rem; margin-top: var(--s2); }
+/* Period breakdown */
 .breakdown { display: flex; flex-direction: column; gap: 2px; margin-top: var(--s2); }
 
 /* Buttons + dialogs reused by Slice 2 */

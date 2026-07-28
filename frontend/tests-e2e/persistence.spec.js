@@ -12,8 +12,8 @@ test('created month and expense survive a reload', async ({ page }) => {
   await page.locator('.period-card').first().getByRole('button', { name: '+ Add' }).click();
   await page.getByLabel('Amount', { exact: true }).fill('40');
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.locator('#statusCard .hero')).toContainText('$960.00 available');
+  await expect(page.locator('#statusCard .hero')).toContainText('$960.00');
 
   await page.reload();
-  await expect(page.locator('#statusCard .hero')).toContainText('$960.00 available');
+  await expect(page.locator('#statusCard .hero')).toContainText('$960.00');
 });
