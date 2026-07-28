@@ -93,6 +93,8 @@ function renderDestination() {
   add('spent', 'Spent', state.destination.type === 'spent');
   periods().forEach((_, i) => { add(`period:${i}`, describeDestination({ type: 'period', periodIndex: i }, envName, periods()), state.destination.type === 'period' && state.destination.periodIndex === i); });
   for (const e of state.envelopes) { add(`envelope:${e.id}`, e.name, state.destination.type === 'envelope' && state.destination.envelopeId === e.id); }
+  // Envelopes created inline (as destination or source) live only in `pending` until save; list them too so a pending destination stays selected.
+  for (const [tempId, name] of state.pending) { add(`envelope:${tempId}`, name, state.destination.type === 'envelope' && state.destination.envelopeId === tempId); }
   add('new-envelope', '＋ New envelope', false);
 }
 

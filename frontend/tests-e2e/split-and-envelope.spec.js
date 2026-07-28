@@ -20,6 +20,11 @@ test('fund a new envelope from a period and see it on the Envelopes screen', asy
   await page.getByLabel('Envelope name').fill('Travel');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('#activityTitle')).toContainText('Move money');
+
+  // The new envelope stays selected in the To field (not silently reset to "Spent").
+  await expect(page.locator('#activityDestination')).toHaveValue(/^envelope:/);
+  await expect(page.locator('#activityDestination').locator('option:checked')).toHaveText('Travel');
+
   await page.getByRole('button', { name: 'Save' }).click();
 
   // Switch to Envelopes and confirm the balance.
