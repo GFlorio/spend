@@ -12,7 +12,7 @@ test('fund a new envelope from a period and see it on the Envelopes screen', asy
   await expect(page.locator('#statusCard .hero')).toContainText('$3,000.00');
 
   // Open the universal form from the first period, move money to a new envelope.
-  await page.locator('.period-card').first().getByRole('button', { name: '+ Add' }).click();
+  await page.locator('.period-card').first().getByRole('button', { name: 'Add expense' }).click();
   await page.getByLabel('Amount', { exact: true }).fill('100');
 
   // Create a new envelope as the destination via the themed name sheet.
@@ -38,7 +38,7 @@ test('add a second funding source through the themed picker', async ({ page }) =
   await page.getByLabel('Available this month').fill('3000');
   await page.getByRole('button', { name: 'Create month' }).click();
 
-  await page.locator('.period-card').first().getByRole('button', { name: '+ Add' }).click();
+  await page.locator('.period-card').first().getByRole('button', { name: 'Add expense' }).click();
   await page.getByLabel('Amount', { exact: true }).fill('60');
 
   // Pick a second source from the themed list — no native prompt.
@@ -55,7 +55,7 @@ test('rebalance a split by dragging and arrowing the allocation bar', async ({ p
   await page.getByLabel('Available this month').fill('3000');
   await page.getByRole('button', { name: 'Create month' }).click();
 
-  await page.locator('.period-card').first().getByRole('button', { name: '+ Add' }).click();
+  await page.locator('.period-card').first().getByRole('button', { name: 'Add expense' }).click();
   await page.getByLabel('Amount', { exact: true }).fill('60');
   await page.getByRole('button', { name: '+ Add source' }).click();
   await page.getByRole('button', { name: 'Whole month' }).click();

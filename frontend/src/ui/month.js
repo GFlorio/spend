@@ -45,8 +45,12 @@ function chooseScope(title) {
   });
 }
 
-/** Duotone "inspect details" glyph (Phosphor list-magnifying-glass); inherits button color. */
-const DETAILS_ICON = `<svg class="icon" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,144a32,32,0,1,1-32-32A32,32,0,0,1,216,144Z" opacity="0.2"></path><path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,72h72a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm88,48H40a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16Zm109.66,13.66a8,8,0,0,1-11.32,0L206,177.36A40,40,0,1,1,217.36,166l20.3,20.3A8,8,0,0,1,237.66,197.66ZM184,168a24,24,0,1,0-24-24A24,24,0,0,0,184,168Z"></path></svg>`;
+const CHEVRON_ICON = '<svg class="icon chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+const PLUS_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const BILLS_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg>';
+const EDIT_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>';
+const TRASH_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14M10 10v6m4-6v6"/></svg>';
+const CHECK_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
 
 /** @type {string|null} */
 let selectedMonthKey = null;
@@ -102,9 +106,7 @@ async function refresh() {
 let statusExpanded = false;
 
 /**
- * Renders the collapsible monthly status card: collapsed shows the safe-to-spend hero
- * and an unpaid-bill count (only when some are unpaid); expanded also reveals the bill
- * list and amount editor.
+ * Renders the collapsible monthly status card.
  * @param {import('../compute.js').MonthView} view
  * @param {import('../data.js').BillView[]} bills
  */
@@ -112,37 +114,107 @@ function renderStatus(view, bills) {
   const card = $.html($.id('statusCard'));
   card.innerHTML = '';
 
+  const eyebrow = document.createElement('div');
+  eyebrow.className = 'status-eyebrow';
+  eyebrow.textContent = 'Available this month';
+
   const hero = document.createElement('div');
   hero.className = 'hero';
   hero.textContent = formatMoney(view.safeToSpend);
 
   const hasBills = view.billCount > 0;
   const unpaid = view.billCount - view.paidCount;
+  const unpaidReserved = bills
+    .filter((bill) => !bill.paid)
+    .reduce((total, bill) => total + bill.expected, 0);
+
+  const summary = document.createElement('div');
+  summary.className = 'status-summary';
+  summary.append(eyebrow, hero);
+
+  const billProgress = document.createElement('div');
+  billProgress.className = 'bill-progress';
+  const progressText = document.createElement('span');
+  progressText.textContent = hasBills
+    ? `${view.paidCount} of ${view.billCount} bills paid`
+    : 'No bills added yet';
+  billProgress.append(progressText);
+  if (unpaid > 0) {
+    const reserved = document.createElement('span');
+    reserved.textContent = `${formatMoney(unpaidReserved)} reserved`;
+    billProgress.append(reserved);
+  }
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
-  toggle.className = 'btn ghost small';
-  toggle.textContent = statusExpanded ? 'Hide details' : hasBills ? 'Show bills' : 'Add a bill';
+  toggle.className = 'btn disclosure-btn status-toggle';
+  toggle.innerHTML = `${BILLS_ICON}<span>Bills</span>${CHEVRON_ICON}`;
+  toggle.setAttribute('aria-label', statusExpanded ? 'Hide bills' : 'Show bills');
+  toggle.setAttribute('aria-expanded', String(statusExpanded));
+  toggle.setAttribute('aria-controls', 'monthlyBills');
   toggle.addEventListener('click', () => {
     statusExpanded = !statusExpanded;
     void refresh();
   });
 
-  card.append(hero);
-  // Only surface bills when action is needed: the unpaid count. All paid (or none) = silence.
-  if (unpaid > 0) {
-    const progress = document.createElement('div');
-    progress.className = 'bill-progress';
-    progress.textContent = `${unpaid} bill${unpaid === 1 ? '' : 's'} unpaid`;
-    card.append(progress);
+  card.append(summary, billProgress, toggle);
+  if (statusExpanded) {
+    const section = document.createElement('section');
+    section.id = 'monthlyBills';
+    section.className = 'monthly-bills';
+    const heading = document.createElement('div');
+    heading.className = 'section-heading';
+    const title = document.createElement('h2');
+    title.textContent = 'Monthly bills';
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'btn small icon-btn add-bill';
+    add.innerHTML = PLUS_ICON;
+    add.setAttribute('aria-label', 'Add bill');
+    add.title = 'Add bill';
+    add.addEventListener('click', () => void addBill());
+    heading.append(title, add);
+    section.append(heading, renderBillList(bills), renderAmountEditor(view));
+    card.append(section);
   }
-  card.append(toggle);
-  if (statusExpanded) { card.append(renderBillList(bills), renderAmountEditor(view)); }
 }
 
 /**
- * Renders the bill list with one-tap paid checkbox, rename, and actual-amount editing,
- * plus an "+ Add bill" control.
+ * Captures the actual amount while marking a bill as paid.
+ * @param {import('../data.js').BillView} bill
+ */
+async function payBill(bill) {
+  const values = await inputSheet({
+    title: `Pay ${bill.name}`,
+    fields: [{ name: 'amount', label: 'Actual amount', kind: 'amount', value: bill.expected, required: true }],
+    confirmLabel: 'Mark paid',
+  });
+  if (!values) { return; }
+  await Bills.setActual(bill.id, /** @type {number} */ (values.amount));
+  await refresh();
+}
+
+/** Opens the add-bill sheet and creates a bill in the selected month. */
+async function addBill() {
+  const values = await inputSheet({
+    title: 'Add bill',
+    fields: [
+      { name: 'name', label: 'Bill name', required: true },
+      { name: 'expected', label: 'Expected amount', kind: 'amount', required: true },
+    ],
+    confirmLabel: 'Add bill',
+  });
+  if (!values) { return; }
+  await Bills.create({
+    monthKey: /** @type {string} */ (selectedMonthKey),
+    name: /** @type {string} */ (values.name),
+    expected: /** @type {number} */ (values.expected),
+  });
+  await refresh();
+}
+
+/**
+ * Renders the bill list with clear payment, edit, and removal affordances.
  * @param {import('../data.js').BillView[]} bills
  * @returns {HTMLElement}
  */
@@ -150,25 +222,46 @@ function renderBillList(bills) {
   const wrap = document.createElement('div');
   wrap.className = 'bill-list';
 
+  if (bills.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'bill-empty';
+    empty.textContent = 'Add your regular bills to keep this month’s spending plan accurate.';
+    wrap.append(empty);
+    return wrap;
+  }
+
   for (const bill of bills) {
-    const row = document.createElement('div');
+    const row = document.createElement('article');
     row.className = 'bill-row';
 
-    const pay = document.createElement('input');
-    pay.type = 'checkbox';
-    pay.checked = bill.paid;
-    pay.setAttribute('aria-label', `${bill.name} paid`);
-    pay.addEventListener('change', () => {
+    const main = document.createElement('div');
+    main.className = 'bill-row-main';
+
+    const pay = document.createElement('button');
+    pay.type = 'button';
+    pay.className = `btn small bill-paid-toggle ${bill.paid ? 'paid' : 'unpaid'}`;
+    pay.innerHTML = CHECK_ICON;
+    pay.setAttribute('aria-label', `Mark ${bill.name} ${bill.paid ? 'unpaid' : 'paid'}`);
+    pay.title = bill.paid ? 'Mark unpaid' : 'Mark paid';
+    pay.addEventListener('click', () => {
       void (async () => {
-        if (pay.checked) { await Bills.markPaid(bill.id); } else { await Bills.markUnpaid(bill.id); }
-        await refresh();
+        if (bill.paid) {
+          await Bills.markUnpaid(bill.id);
+          await refresh();
+        } else {
+          await payBill(bill);
+        }
       })();
     });
 
     const name = document.createElement('button');
     name.type = 'button';
     name.className = 'btn ghost bill-name';
-    name.textContent = bill.name;
+    const nameText = document.createElement('span');
+    nameText.textContent = bill.name;
+    name.innerHTML = EDIT_ICON;
+    name.prepend(nameText);
+    name.setAttribute('aria-label', `Rename ${bill.name}`);
     name.addEventListener('click', () => {
       void (async () => {
         const values = await inputSheet({
@@ -184,9 +277,22 @@ function renderBillList(bills) {
 
     const amount = document.createElement('button');
     amount.type = 'button';
-    amount.className = 'btn ghost bill-amount';
+    amount.className = 'btn bill-amount';
     const shown = bill.paid ? (bill.actual ?? bill.expected) : bill.expected;
-    amount.textContent = shown !== bill.expected ? `${formatMoney(shown)} (exp ${formatMoney(bill.expected)})` : formatMoney(shown);
+    const amountLabel = document.createElement('span');
+    amountLabel.className = 'bill-amount-label';
+    amountLabel.textContent = bill.paid ? 'Actual' : 'Expected';
+    const amountValue = document.createElement('strong');
+    amountValue.textContent = formatMoney(shown);
+    amount.append(amountLabel, amountValue);
+    if (shown !== bill.expected) {
+      const expected = document.createElement('span');
+      expected.className = 'bill-expected';
+      expected.textContent = `${formatMoney(bill.expected)} expected`;
+      amount.append(expected);
+    }
+    amount.insertAdjacentHTML('beforeend', CHEVRON_ICON);
+    amount.setAttribute('aria-label', `Edit ${bill.paid ? 'actual' : 'expected'} amount for ${bill.name}`);
     amount.addEventListener('click', () => {
       void (async () => {
         if (bill.paid) {
@@ -211,8 +317,8 @@ function renderBillList(bills) {
 
     const remove = document.createElement('button');
     remove.type = 'button';
-    remove.className = 'btn ghost small bill-remove';
-    remove.textContent = '🗑';
+    remove.className = 'btn ghost icon-btn bill-remove';
+    remove.innerHTML = TRASH_ICON;
     remove.setAttribute('aria-label', `Remove ${bill.name}`);
     remove.addEventListener('click', () => {
       void (async () => {
@@ -229,34 +335,10 @@ function renderBillList(bills) {
         await refresh();
       })();
     });
-    row.append(pay, name, amount, remove);
+    main.append(pay, name, remove);
+    row.append(main, amount);
     wrap.append(row);
   }
-
-  const add = document.createElement('button');
-  add.type = 'button';
-  add.className = 'btn small';
-  add.textContent = '+ Add bill';
-  add.addEventListener('click', () => {
-    void (async () => {
-      const values = await inputSheet({
-        title: 'Add bill',
-        fields: [
-          { name: 'name', label: 'Bill name', required: true },
-          { name: 'expected', label: 'Expected amount', kind: 'amount', required: true },
-        ],
-        confirmLabel: 'Add bill',
-      });
-      if (!values) { return; }
-      await Bills.create({
-        monthKey: /** @type {string} */ (selectedMonthKey),
-        name: /** @type {string} */ (values.name),
-        expected: /** @type {number} */ (values.expected),
-      });
-      await refresh();
-    })();
-  });
-  wrap.append(add);
 
   return wrap;
 }
@@ -267,10 +349,20 @@ function renderBillList(bills) {
  * @returns {HTMLElement}
  */
 function renderAmountEditor(view) {
+  const wrap = document.createElement('div');
+  wrap.className = 'month-plan';
+  const heading = document.createElement('h3');
+  heading.textContent = 'Month plan';
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'btn ghost small';
-  btn.textContent = `Monthly amount: ${formatMoney(view.available)} · Edit`;
+  btn.className = 'btn plan-row';
+  const label = document.createElement('span');
+  label.textContent = 'Starting amount';
+  const value = document.createElement('strong');
+  value.textContent = formatMoney(view.available);
+  btn.append(label, value);
+  btn.insertAdjacentHTML('beforeend', CHEVRON_ICON);
+  btn.setAttribute('aria-label', `Edit monthly amount, currently ${formatMoney(view.available)}`);
   btn.addEventListener('click', () => {
     void (async () => {
       const values = await inputSheet({
@@ -283,7 +375,8 @@ function renderAmountEditor(view) {
       }
     })();
   });
-  return btn;
+  wrap.append(heading, btn);
+  return wrap;
 }
 
 /** Index of the period containing today, or -1 if the selected month is not the current month. @param {import('../compute.js').MonthView} view */
@@ -295,8 +388,8 @@ function currentPeriodIndex(view) {
   return p ? p.index : -1;
 }
 
-/** Renders period cards: a right-floating details toggle, a centered range + remaining line, and (when
- * expanded) the funding breakdown and expense list. @param {import('../compute.js').MonthView} view */
+/** Renders period cards and their optional funding and activity details.
+ * @param {import('../compute.js').MonthView} view */
 async function renderPeriods(view) {
   const container = $.html($.id('periods'));
   container.innerHTML = '';
@@ -308,14 +401,31 @@ async function renderPeriods(view) {
     const card = document.createElement('section');
     card.className = `period-card${p.index === current ? ' current' : ''}${expanded ? ' expanded' : ''}`;
 
-    // Details toggle is absolutely positioned at the card's right edge (see CSS).
+    const top = document.createElement('div');
+    top.className = 'period-top';
+
+    const heading = document.createElement('div');
+    heading.className = 'period-heading';
+    const range = document.createElement('span');
+    range.className = 'range';
+    const rangeText = `${p.startDay}–${p.endDay}`;
+    range.textContent = rangeText;
+    heading.append(range);
+    if (p.index === current) {
+      const now = document.createElement('span');
+      now.className = 'now-label';
+      now.textContent = 'Current';
+      heading.append(now);
+    }
+    card.setAttribute('aria-label', `Period ${rangeText}${p.index === current ? ' (current)' : ''}`);
+
     const toggle = document.createElement('button');
     toggle.type = 'button';
-    toggle.className = 'btn ghost icon-btn details-toggle';
-    toggle.innerHTML = DETAILS_ICON;
-    toggle.setAttribute('aria-label', 'Details');
+    toggle.className = 'btn small icon-btn details-toggle';
+    toggle.innerHTML = CHEVRON_ICON;
+    toggle.setAttribute('aria-label', expanded ? 'Hide details' : 'Show details');
+    toggle.title = expanded ? 'Hide details' : 'Show details';
     toggle.setAttribute('aria-expanded', String(expanded));
-    toggle.classList.toggle('active', expanded);
     toggle.addEventListener('click', () => {
       if (expandedPeriods.has(p.index)) { expandedPeriods.delete(p.index); } else { expandedPeriods.add(p.index); }
       void refresh();
@@ -324,37 +434,31 @@ async function renderPeriods(view) {
     const body = document.createElement('div');
     body.className = 'period-body';
 
-    // Range and remaining share one centered line.
-    const head = document.createElement('div');
-    head.className = 'period-head';
-    const range = document.createElement('span');
-    range.className = 'range';
-    const rangeText = `${p.startDay}–${p.endDay}`;
-    range.textContent = rangeText;
-    if (p.index === current) {
-      const now = document.createElement('span');
-      now.className = 'now-label';
-      now.textContent = 'Now';
-      range.append(now);
-    }
-    card.setAttribute('aria-label', `Period ${rangeText}${p.index === current ? ' (current)' : ''}`);
-
-    const remaining = document.createElement('span');
-    remaining.className = `remaining${p.remaining < 0 ? ' negative' : ''}`;
+    const balance = document.createElement('div');
+    balance.className = `period-balance${p.remaining < 0 ? ' negative' : ''}`;
+    const remaining = document.createElement('strong');
+    remaining.className = 'remaining';
     remaining.textContent = formatMoney(p.remaining);
-    head.append(range, remaining);
+    balance.append(remaining);
 
     const add = document.createElement('button');
     add.type = 'button';
-    add.className = 'btn primary small';
-    add.textContent = '+ Add';
+    add.className = 'btn primary small icon-btn add-expense';
+    add.innerHTML = PLUS_ICON;
+    add.setAttribute('aria-label', 'Add expense');
+    add.title = 'Add expense';
     add.addEventListener('click', () => openActivity(p.index));
 
-    const actions = document.createElement('div');
-    actions.className = 'period-actions';
-    actions.append(add);
+    const topActions = document.createElement('div');
+    topActions.className = 'period-top-actions';
+    topActions.append(add, toggle);
+    top.append(heading, topActions);
+
+    body.append(balance);
 
     if (p.openFunds) {
+      const actions = document.createElement('div');
+      actions.className = 'period-actions';
       const move = document.createElement('button');
       move.type = 'button';
       move.className = 'btn small move-leftover';
@@ -374,26 +478,38 @@ async function renderPeriods(view) {
         });
       });
       actions.append(move);
+      body.append(actions);
     }
-
-    body.append(head, actions);
 
     // Breakdown and expense list are detail: only shown when the period is expanded.
     if (expanded) {
-      const breakdown = document.createElement('div');
-      breakdown.className = 'breakdown secondary';
+      const details = document.createElement('div');
+      details.className = 'period-details';
+      const detailsTitle = document.createElement('h3');
+      detailsTitle.textContent = 'Period details';
+      const breakdown = document.createElement('dl');
+      breakdown.className = 'breakdown';
       const rows = [
-        `Base ${formatMoney(p.allocation)}`,
-        p.carryIn ? `Carried deficit ${formatMoney(p.carryIn)}` : '',
-        p.transferIn ? `Transfers in ${formatMoney(p.transferIn)}` : '',
-        p.out ? `Out ${formatMoney(-p.out)}` : '',
-        p.wholeMonthDebit ? `Whole-month funding ${formatMoney(-p.wholeMonthDebit)}` : '',
-      ].filter(Boolean);
-      breakdown.innerHTML = rows.map((r) => `<div>${r}</div>`).join('');
-      body.append(breakdown);
+        ['Base allocation', formatMoney(p.allocation)],
+        ['Spent', formatMoney(p.spent)],
+        p.carryIn ? ['Carried deficit', formatMoney(p.carryIn)] : null,
+        p.transferIn ? ['Transfers in', formatMoney(p.transferIn)] : null,
+        p.out ? ['Out', formatMoney(-p.out)] : null,
+        p.wholeMonthDebit ? ['Whole-month funding', formatMoney(-p.wholeMonthDebit)] : null,
+      ].filter((row) => row !== null);
+      for (const [label, value] of rows) {
+        const term = document.createElement('dt');
+        term.textContent = label;
+        const description = document.createElement('dd');
+        description.textContent = value;
+        breakdown.append(term, description);
+      }
+      details.append(detailsTitle, breakdown);
 
       const periodActivities = activities.filter((a) => a.periodIndex === p.index);
       if (periodActivities.length) {
+        const activityTitle = document.createElement('h3');
+        activityTitle.textContent = 'Activity';
         const list = document.createElement('div');
         list.className = 'expense-list';
         for (const a of periodActivities) {
@@ -407,16 +523,23 @@ async function renderPeriods(view) {
           amt.className = 'expense-amount';
           amt.textContent = formatMoney(activityTotal(a.allocations));
           item.append(desc, amt);
+          item.insertAdjacentHTML('beforeend', CHEVRON_ICON);
           item.addEventListener('click', () => {
             if (lastView) { void openActivityEdit({ monthKey: /** @type {string} */ (selectedMonthKey), activity: a }); }
           });
           list.append(item);
         }
-        body.append(list);
+        details.append(activityTitle, list);
+      } else {
+        const empty = document.createElement('p');
+        empty.className = 'period-empty';
+        empty.textContent = 'No activity in this period yet.';
+        details.append(empty);
       }
+      body.append(details);
     }
 
-    card.append(toggle, body);
+    card.append(top, body);
     container.append(card);
   }
 }

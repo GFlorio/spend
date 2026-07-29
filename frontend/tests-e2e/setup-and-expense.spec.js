@@ -20,12 +20,13 @@ test('first run: set up a month, then record an expense', async ({ page }) => {
   await expect(page.locator('#statusCard .hero')).toContainText('$3,000.00');
   await expect(page.locator('.period-card').first()).toBeVisible();
 
-  // A fresh month has no bills yet: no bill-progress line, and the toggle invites adding one.
+  // A fresh month has a clear empty state and a disclosure control with one job.
   await expect(page.locator('#statusCard')).not.toContainText('unpaid');
-  await expect(page.locator('#statusCard')).toContainText('Add a bill');
+  await expect(page.locator('#statusCard')).toContainText('No bills added yet');
+  await expect(page.getByRole('button', { name: 'Show bills' })).toBeVisible();
 
   // Record an expense on the first period.
-  await page.locator('.period-card').first().getByRole('button', { name: '+ Add' }).click();
+  await page.locator('.period-card').first().getByRole('button', { name: 'Add expense' }).click();
   await page.getByLabel('Amount', { exact: true }).fill('50');
   await page.getByRole('button', { name: 'Save' }).click();
 
