@@ -1,10 +1,11 @@
 import { computeMonth } from '../compute.js';
 import { Activities, Bills, Months } from '../data.js';
-import { formatMoney, parseMoney } from '../money.js';
+import { formatMoney } from '../money.js';
 import { activityTotal } from '../split.js';
 import * as $ from '../utils.js';
 import { openActivityCreate, openActivityEdit, setupActivity } from './activity.js';
 import { confirmDialog, inputSheet } from './dialogs.js';
+import { setupMoneyField } from './money-field.js';
 
 /**
  * Opens the scope chooser and resolves to the selected scope, or null if dismissed.
@@ -56,6 +57,8 @@ const CHECK_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="cu
 let selectedMonthKey = null;
 /** @type {import('../compute.js').MonthView|null} */
 let lastView = null;
+/** @type {ReturnType<typeof setupMoneyField>|null} */
+let monthSetupAmountField = null;
 /** @type {Set<number>} indices of expanded period cards */
 const expandedPeriods = new Set();
 
@@ -568,7 +571,7 @@ async function openMonthSetup(monthKey) {
   const dlg = $.dialog($.id('monthSetupDialog'));
   $.html($.id('monthSetupTitle')).textContent = `Set up ${monthLabel(monthKey)}`;
   const amount = $.input($.id('monthSetupAmount'));
-  amount.value = prev ? (prev.available / 100).toFixed(2) : '';
+  monthSetupAmountField?.setValue(prev?.available ?? null);
 
   const intro = $.html($.id('monthSetupIntro'));
   intro.textContent = isFirst
@@ -623,6 +626,8 @@ async function openSelector() {
 }
 
 export function setupMonth() {
+  monthSetupAmountField = setupMoneyField($.input($.id('monthSetupAmount')), { required: true });
+
   // Month title opens the selector sheet.
   const selectSheet = $.dialog($.id('monthSelectSheet'));
   $.button($.id('monthTitle')).addEventListener('click', () => void openSelector());
@@ -642,8 +647,11 @@ export function setupMonth() {
   $.form($.id('monthSetupForm')).addEventListener('submit', (e) => {
     e.preventDefault();
     void (async () => {
-      const available = parseMoney($.input($.id('monthSetupAmount')).value);
-      if (available === null || available < 0) { return; } // required; invalid stays open
+      const available = monthSetupAmountField?.read({ report: true }) ?? null;
+      if (available === null) {
+        monthSetupAmountField?.focus();
+        return;
+      }
       const monthKey = /** @type {string} */ (setupDlg.dataset.monthKey);
       const copyFrom = setupDlg.dataset.copyFrom || null;
       const shouldCopy = $.input($.id('monthSetupCopy')).checked && !$.html($.id('monthSetupCopyField')).classList.contains('hidden');

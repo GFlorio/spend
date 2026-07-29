@@ -1,16 +1,21 @@
 import { Activities, Envelopes } from '../data.js';
-import { formatMoney, parseMoney } from '../money.js';
+import { formatEditableMoney, formatMoney } from '../money.js';
 import { periodsForMonthKey } from '../periods.js';
 import { activityTotal, redistributeEqual, removeProportional, setBoundary } from '../split.js';
 import * as $ from '../utils.js';
 import { inputSheet, pickList } from './dialogs.js';
 import { describeDestination, describeSource } from './labels.js';
+import { setupMoneyField } from './money-field.js';
 
 /** @typedef {import('../data.js').Source} Source */
 /** @typedef {import('../data.js').Destination} Destination */
 
 /** @type {() => Promise<void>} */
 let onSaved = async () => {};
+/** @type {ReturnType<typeof setupMoneyField>|null} */
+let totalField = null;
+/** @type {ReturnType<typeof setupMoneyField>[]} */
+let sourceFields = [];
 
 const state = {
   /** @type {'create'|'edit'} */ mode: 'create',
@@ -65,10 +70,6 @@ function destinationConflicts() {
   return state.rows.some((r) => sameRef(r.source, asSource));
 }
 
-function isValid() {
-  return state.total > 0 && !destinationConflicts();
-}
-
 function render() {
   renderDestination();
   renderSources();
@@ -77,7 +78,6 @@ function render() {
   $.html($.id('activityTitle')).textContent = state.destination.type === 'spent' ? 'Add expense' : 'Move money';
   const error = destinationConflicts() ? 'A source cannot equal the destination.' : '';
   $.html($.id('activityError')).textContent = error;
-  $.button($.id('activitySave')).disabled = !isValid();
   $.button($.id('activityDelete')).classList.toggle('hidden', state.mode !== 'edit');
 }
 
@@ -101,6 +101,8 @@ function renderDestination() {
 function renderSources() {
   const container = $.html($.id('activitySources'));
   container.innerHTML = '';
+  sourceFields = [];
+  let allocatedBefore = 0;
   state.rows.forEach((row, i) => {
     const isLast = i === state.rows.length - 1;
     const rowEl = document.createElement('div');
@@ -111,20 +113,26 @@ function renderSources() {
     label.textContent = describeSource(row.source, envName, periods());
 
     const amount = document.createElement('input');
-    amount.type = 'text';
-    amount.inputMode = 'decimal';
     amount.className = 'source-amount';
-    amount.value = (row.amount / 100).toFixed(2);
     amount.disabled = isLast; // last is derived; the sole row mirrors the total
     amount.setAttribute('aria-label', `${label.textContent} amount`);
-    amount.addEventListener('input', () => {
-      const parsed = parseMoney(amount.value);
-      row.amount = parsed === null ? 0 : Math.max(0, parsed);
-      normalize();
-      render();
+    const value = document.createElement('div');
+    value.className = 'source-value';
+    value.append(amount);
+    rowEl.append(label, value);
+    const field = setupMoneyField(amount, {
+      required: true,
+      maximum: state.total - allocatedBefore,
+      onInput: (parsed) => {
+        if (parsed === null) { return; }
+        row.amount = parsed;
+        normalize();
+        syncAllocUI(amount);
+      },
     });
-
-    rowEl.append(label, amount);
+    field.setValue(row.amount);
+    sourceFields.push(field);
+    allocatedBefore += row.amount;
     if (state.rows.length > 1) {
       const remove = document.createElement('button');
       remove.type = 'button';
@@ -188,8 +196,9 @@ function renderBar() {
 /**
  * Live-updates segment widths, handle positions, source inputs, and the projection during
  * a drag or key press, without rebuilding the DOM (which would drop focus / pointer capture).
+ * @param {HTMLInputElement} [editingInput] input whose in-progress text should be preserved
  */
-function syncAllocUI() {
+function syncAllocUI(editingInput) {
   const bar = $.html($.id('activityBar'));
   const total = state.total || 1;
   const segs = $.arr('.alloc-seg', bar);
@@ -198,7 +207,9 @@ function syncAllocUI() {
   let cum = 0;
   state.rows.forEach((row, i) => {
     if (segs[i]) { $.html(segs[i]).style.width = `${Math.max(0, (row.amount / total) * 100)}%`; }
-    if (inputs[i] instanceof HTMLInputElement) { inputs[i].value = (row.amount / 100).toFixed(2); }
+    if (inputs[i] instanceof HTMLInputElement && inputs[i] !== editingInput) {
+      inputs[i].value = formatEditableMoney(row.amount);
+    }
     cum += row.amount;
     const handle = handles[i];
     if (handle) { $.html(handle).style.left = `${(cum / total) * 100}%`; handle.setAttribute('aria-valuenow', String(cum)); }
@@ -366,7 +377,17 @@ async function onDestinationChange(value) {
 }
 
 async function save() {
-  if (!isValid()) { return; }
+  const total = totalField?.read({ report: true }) ?? null;
+  if (total === null) {
+    totalField?.focus();
+    return;
+  }
+  const invalidSource = sourceFields.find((field) => field.read({ report: true }) === null);
+  if (invalidSource) {
+    invalidSource.focus();
+    return;
+  }
+  if (destinationConflicts()) { return; }
   // Only materialise pending envelopes still referenced by the destination or a source.
   /** @type {Set<string>} */
   const referenced = new Set();
@@ -418,7 +439,7 @@ export async function openActivityCreate({ monthKey, periodIndex, preset }) {
   state.total = preset?.amount ?? 0;
   state.rows = [{ source: { type: 'period', periodIndex }, amount: state.total }];
   await loadEnvelopes();
-  $.input($.id('activityAmount')).value = state.total > 0 ? (state.total / 100).toFixed(2) : '';
+  totalField?.setValue(state.total > 0 ? state.total : null);
   $.input($.id('activityDescription')).value = '';
   render();
   $.dialog($.id('activityDialog')).showModal();
@@ -437,7 +458,7 @@ export async function openActivityEdit({ monthKey, activity }) {
   state.total = activityTotal(activity.allocations);
   state.rows = activity.allocations.map((a) => ({ source: a.source, amount: a.amount }));
   await loadEnvelopes();
-  $.input($.id('activityAmount')).value = (state.total / 100).toFixed(2);
+  totalField?.setValue(state.total);
   $.input($.id('activityDescription')).value = activity.description;
   render();
   $.dialog($.id('activityDialog')).showModal();
@@ -447,16 +468,18 @@ export async function openActivityEdit({ monthKey, activity }) {
 /** @param {() => Promise<void>} saved */
 export function setupActivity(saved) {
   onSaved = saved;
+  totalField = setupMoneyField($.input($.id('activityAmount')), {
+    required: true,
+    minimum: 1,
+    onInput: (parsed) => {
+      state.total = parsed ?? 0;
+      normalize();
+      render();
+    },
+  });
   const dlg = $.dialog($.id('activityDialog'));
   $.button($.id('activityClose')).addEventListener('click', () => dlg.close());
   dlg.addEventListener('click', (e) => { if (e.target === dlg) { dlg.close(); } });
-
-  $.input($.id('activityAmount')).addEventListener('input', () => {
-    const parsed = parseMoney($.input($.id('activityAmount')).value);
-    state.total = parsed === null ? 0 : Math.max(0, parsed);
-    normalize();
-    render();
-  });
 
   $.id('activityDestination').addEventListener('change', (e) => {
     void onDestinationChange(/** @type {HTMLSelectElement} */ (e.target).value);

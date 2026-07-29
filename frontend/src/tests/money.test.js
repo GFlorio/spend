@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { formatMoney, parseMoney } from '../money.js';
+import { formatEditableMoney, formatMoney, parseMoney } from '../money.js';
 
 describe('formatMoney', () => {
   test('formats whole and fractional amounts with grouping (en-US)', () => {
@@ -9,6 +9,13 @@ describe('formatMoney', () => {
   });
   test('formats negatives with a leading minus', () => {
     expect(formatMoney(-12000, 'en-US')).toBe('-$120.00');
+  });
+});
+
+describe('formatEditableMoney', () => {
+  test('formats an editable amount with grouping and no duplicate currency symbol', () => {
+    expect(formatEditableMoney(184250, 'en-US')).toBe('1,842.50');
+    expect(formatEditableMoney(184250, 'pt-BR')).toBe('1.842,50');
   });
 });
 
@@ -29,6 +36,14 @@ describe('parseMoney', () => {
   });
   test('accepts a leading decimal point', () => {
     expect(parseMoney('.5')).toBe(50);
+  });
+  test('accepts either common grouping and decimal convention', () => {
+    expect(parseMoney('1,842.50')).toBe(184250);
+    expect(parseMoney('1.842,50')).toBe(184250);
+  });
+  test('rejects malformed grouping without rejecting comma decimals', () => {
+    expect(parseMoney('1,84,2.50')).toBeNull();
+    expect(parseMoney('12,34')).toBe(1234);
   });
   test('normalizes negative zero to zero', () => {
     expect(Object.is(parseMoney('-0'), 0)).toBe(true);

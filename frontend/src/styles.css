@@ -150,15 +150,20 @@ dialog::backdrop { background: rgba(0,0,0,0.4); }
 .sheet-header, .config-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
 .field { display: flex; flex-direction: column; gap: var(--s1); }
 .field > input[type="text"] { min-height: 44px; padding: 0 var(--s3); border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg); color: var(--text); font: inherit; }
+.money-input { display: flex; align-items: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s3); border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg); }
+.money-prefix { color: var(--muted); font-weight: 650; }
+.money-input input { flex: 1; min-width: 0; width: 100%; min-height: 42px; padding: 0; border: none; outline: none; background: transparent; color: var(--text); font: inherit; font-variant-numeric: tabular-nums; }
+.money-input:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+.money-input.invalid { border-color: var(--negative); background: var(--negative-soft); }
+.field-error { min-height: 1.25em; margin: 0; color: var(--negative); font-size: 0.85rem; }
+.field-error[hidden] { display: block; visibility: hidden; }
+.field > input[aria-invalid="true"] { border-color: var(--negative); background: var(--negative-soft); }
 .copy-field { flex-direction: row; align-items: center; gap: var(--s2); }
 .sheet-intro { margin: 0; color: var(--muted); }
 
 /* Hero amount input in the activity form */
-.amount-input { display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3); border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg); }
-.amount-input .amount-prefix { font-size: 1.75rem; font-weight: 700; color: var(--muted); }
-.amount-input input { flex: 1; min-width: 0; width: 100%; min-height: 56px; padding: 0; border: none; background: none; color: var(--text); font: inherit; font-size: 1.75rem; font-weight: 700; }
-.amount-input:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
-.amount-input input:focus-visible { outline: none; }
+.amount-field .money-input { min-height: 58px; }
+.amount-field .money-prefix, .amount-field .money-input input { font-size: 1.75rem; font-weight: 700; }
 
 .bill-list { display: flex; flex-direction: column; gap: var(--s2); }
 .bill-row { padding: var(--s2); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); }
@@ -195,9 +200,11 @@ dialog::backdrop { background: rgba(0,0,0,0.4); }
 /* Universal activity form */
 .sources-head { display: flex; justify-content: space-between; align-items: center; margin-top: var(--s3); }
 .sources { display: flex; flex-direction: column; gap: var(--s2); }
-.source-row { display: flex; align-items: center; gap: var(--s2); }
+.source-row { display: grid; grid-template-columns: minmax(0, 1fr) 9rem auto; align-items: start; gap: var(--s2); }
 .source-name { flex: 1; }
-.source-amount { width: 8rem; min-height: 44px; }
+.source-value { width: 9rem; }
+.source-value .money-input { gap: var(--s1); padding-inline: var(--s2); }
+.source-value .field-error { margin-top: var(--s1); }
 .source-remove { min-width: 44px; }
 .alloc-bar { position: relative; height: 12px; margin: var(--s5) 0; }
 .alloc-track { position: absolute; inset: 0; display: flex; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, Canvas 85%, GrayText); }

@@ -85,7 +85,8 @@
         <button type="button" class="btn ghost" id="monthSetupClose" aria-label="Close">✕</button></div>
       <p id="monthSetupIntro" class="sheet-intro hidden"></p>
       <label class="field"><span>Available this month</span>
-        <input type="text" inputmode="decimal" id="monthSetupAmount" required autocomplete="off"></label>
+        <span class="money-input"><span class="money-prefix" aria-hidden="true">$</span>
+          <input type="text" inputmode="decimal" id="monthSetupAmount" required autocomplete="off"></span></label>
       <label class="field copy-field hidden" id="monthSetupCopyField">
         <input type="checkbox" id="monthSetupCopy" checked>
         <span id="monthSetupCopyLabel">Copy bills</span></label>
@@ -98,7 +99,7 @@
       <div class="sheet-header"><span id="activityTitle">Add expense</span>
         <button type="button" class="btn ghost" id="activityClose" aria-label="Close">✕</button></div>
       <label class="field amount-field"><span>Amount</span>
-        <span class="amount-input"><span class="amount-prefix" aria-hidden="true">$</span>
+        <span class="money-input"><span class="money-prefix" aria-hidden="true">$</span>
           <input type="text" inputmode="decimal" id="activityAmount" required autocomplete="off" aria-label="Amount"></span></label>
       <label class="field"><span>Description (optional)</span>
         <input type="text" id="activityDescription" autocomplete="off"></label>

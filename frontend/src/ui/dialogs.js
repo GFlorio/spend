@@ -1,4 +1,4 @@
-import { parseMoney } from '../money.js';
+import { setupMoneyField } from './money-field.js';
 
 /**
  * Themed modal dialogs that replace the browser's prompt/confirm/alert. Each helper builds
@@ -56,10 +56,9 @@ function shell(dlg, title) {
 /** @typedef {{ name:string, label:string, kind?:'text'|'amount', value?:string|number, required?:boolean }} Field */
 
 /**
- * A themed value-entry sheet. `amount` fields return integer minor units (cents) and gate
- * the confirm button on a valid, non-negative parse; `text` fields return the trimmed
- * string and gate on non-empty when required. Resolves the entered values keyed by field
- * name, or null if cancelled.
+ * A themed value-entry sheet. `amount` fields return integer minor units (cents);
+ * required and malformed fields show inline errors on blur or submit. `text` fields
+ * return trimmed strings. Resolves values keyed by field name, or null if cancelled.
  * @param {{ title:string, fields:Field[], confirmLabel?:string }} opts
  * @returns {Promise<Record<string, string|number>|null>}
  */
@@ -70,28 +69,49 @@ export function inputSheet({ title, fields, confirmLabel = 'Save' }) {
     form.method = 'dialog';
     form.className = 'dialog-body';
 
-    /** @type {HTMLInputElement[]} */
-    const inputs = fields.map((f) => {
+    const controls = fields.map((f) => {
       const label = document.createElement('label');
       label.className = 'field';
       const span = document.createElement('span');
       span.textContent = f.label;
       const input = document.createElement('input');
       input.type = 'text';
-      if ((f.kind ?? 'text') === 'amount') { input.inputMode = 'decimal'; }
       input.autocomplete = 'off';
-      input.value = f.value === undefined ? ''
-        : f.kind === 'amount' ? (Number(f.value) / 100).toFixed(2)
-        : String(f.value);
       label.append(span, input);
       form.append(label);
-      return input;
+      if ((f.kind ?? 'text') === 'amount') {
+        const money = setupMoneyField(input, { required: f.required });
+        money.setValue(f.value === undefined ? null : Number(f.value));
+        return { input, money, error: null };
+      }
+      input.value = f.value === undefined ? '' : String(f.value);
+      const error = document.createElement('p');
+      error.className = 'field-error';
+      error.id = `${input.id || f.name}-error`;
+      error.setAttribute('role', 'alert');
+      error.hidden = true;
+      input.setAttribute('aria-describedby', error.id);
+      label.append(error);
+      input.addEventListener('blur', () => { readTextField(f, input, error, true); });
+      input.addEventListener('input', () => {
+        if (input.getAttribute('aria-invalid') === 'true') { readTextField(f, input, error, true); }
+      });
+      return { input, money: null, error };
     });
 
-    /** @returns {Record<string, string|number>|null} parsed values, or null if invalid */
-    const collect = () => {
-      const parsed = fields.map((f, i) => readField(f, inputs[i]));
-      if (parsed.some((v) => v === INVALID)) { return null; }
+    /** @param {boolean} report @returns {Record<string, string|number>|null} */
+    const collect = (report) => {
+      const parsed = fields.map((f, i) => {
+        const control = controls[i];
+        return control.money
+          ? control.money.read({ report })
+          : readTextField(f, control.input, /** @type {HTMLElement} */ (control.error), report);
+      });
+      const invalidIndex = parsed.findIndex((value) => value === INVALID || value === null);
+      if (invalidIndex >= 0) {
+        if (report) { controls[invalidIndex].input.focus(); }
+        return null;
+      }
       /** @type {Record<string, string|number>} */
       const out = {};
       fields.forEach((f, i) => { out[f.name] = /** @type {string|number} */ (parsed[i]); });
@@ -109,12 +129,9 @@ export function inputSheet({ title, fields, confirmLabel = 'Save' }) {
     form.append(actions);
     inner.append(form);
 
-    const validate = () => { confirm.disabled = collect() === null; };
-    for (const input of inputs) { input.addEventListener('input', validate); }
-    validate();
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const values = collect();
+      const values = collect(true);
       if (values) { done(values); }
     });
   }, null);
@@ -123,15 +140,22 @@ export function inputSheet({ title, fields, confirmLabel = 'Save' }) {
 /** Sentinel for an invalid field value (kept out of the resolved object). */
 const INVALID = Symbol('invalid');
 
-/** @param {Field} f @param {HTMLInputElement} input @returns {string|number|typeof INVALID} */
-function readField(f, input) {
+/**
+ * @param {Field} f
+ * @param {HTMLInputElement} input
+ * @param {HTMLElement} error
+ * @param {boolean} report
+ * @returns {string|typeof INVALID}
+ */
+function readTextField(f, input, error, report) {
   const raw = input.value.trim();
-  if ((f.kind ?? 'text') === 'amount') {
-    if (!raw) { return f.required ? INVALID : 0; }
-    const cents = parseMoney(raw);
-    return cents === null || cents < 0 ? INVALID : cents;
+  const message = f.required && !raw ? `Enter ${f.label.toLowerCase()}.` : '';
+  if (report || input.getAttribute('aria-invalid') === 'true') {
+    error.textContent = message;
+    error.hidden = !message;
+    input.setAttribute('aria-invalid', String(Boolean(message)));
   }
-  if (f.required && !raw) { return INVALID; }
+  if (message) { return INVALID; }
   return raw;
 }
 

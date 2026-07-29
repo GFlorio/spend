@@ -5,6 +5,24 @@ test.beforeEach(async ({ page }) => {
   await resetDB(page);
 });
 
+test('money fields format values and explain invalid input', async ({ page }) => {
+  await page.goto('/');
+  const amount = page.getByLabel('Available this month');
+
+  await page.getByRole('button', { name: 'Create month' }).click();
+  await expect(page.getByText('Enter an amount.')).toBeVisible();
+  await expect(amount).toBeFocused();
+
+  await amount.fill('not money');
+  await page.getByRole('button', { name: 'Create month' }).click();
+  await expect(page.getByText('Enter a valid amount with up to 2 decimal places.')).toBeVisible();
+
+  await amount.fill('1842.5');
+  await amount.press('Tab');
+  await expect(amount).toHaveValue('1,842.50');
+  await expect(page.locator('#monthSetupForm .money-prefix')).toHaveText('$');
+});
+
 test('first run: set up a month, then record an expense', async ({ page }) => {
   await page.goto('/');
 
